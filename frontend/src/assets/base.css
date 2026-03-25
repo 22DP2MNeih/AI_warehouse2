@@ -1,4 +1,14 @@
-/* color palette from <https://github.com/vuejs/theme> */
+/* color palette from <https://github.com/vuejs/theme>*/
+/* :root {
+  --primary-blue: #2563eb;
+  --secondary-blue: #eff6ff;
+  --border-light: #e2e8f0;
+  --muted-color: #64748b;
+  --accent-color: #1e293b;
+  --danger-red: #ef4444;
+  --sidebar-bg: #ffffff;
+} */
+/*
 :root {
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #f8f8f8;
@@ -21,7 +31,7 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
 }
 
-/* semantic color variables for this project */
+/* semantic color variables for this project *//*
 :root {
   --color-background: var(--vt-c-white);
   --color-background-soft: var(--vt-c-white-soft);
@@ -83,4 +93,4 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
+} */
