@@ -3,19 +3,7 @@ import { ref } from 'vue';
 import SideBar from '../components/SideBar.vue';
 import NavBar from '../components/NavBar.vue';
 import DataTable from '../components/DataTable.vue';
-
-const employees = ref([
-  { name: "Jānis Kalniņš", role: "Vadītājs", status: "Aktīvs" },
-  { name: "Mārīte Ozola", role: "Operators", status: "Atvaļinājumā" },
-  { name: "Artūrs Liepa", role: "Loģistika", status: "Aktīvs" }
-]);
-
-const handleAddEmployee = () => {
-  const name = prompt("Ievadiet vārdu:");
-  if (name) {
-    employees.value.push({ name, role: "Jauns darbinieks", status: "Aktīvs" });
-  }
-};
+import DynamicForm from '../components/DynamicForm.vue';
 
 const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
@@ -26,18 +14,15 @@ const sidebarConfig = [
   { id: 'procurement_priorities', type: 'slider', label: 'Iegādes prioritātes', modelValue: 95.9, min: 90, max: 99.5, step: 0.1, unit: '%' },
 ];
 
-// const inventoryData = ref([
-//   { name: "Bremžu kluči", vin: "VF312345678", price: 45.50, warehouse: "Rīga-A" },
-// ]);
 const tableCols = [
   { id: 'name', label: 'Nosaukums' },
   { id: 'vin', label: 'VIN' },
   { id: 'sku', label: 'SKU' },
-  { id: 'warehouse', label: 'Noliktava' },
-  { id: 'available', label: 'Pieejams' },
+  { id: 'warehouse', label: 'Noliktava'},
+  { id: 'available', label: 'Pieejams'},
   { id: 'locCode', label: 'Novietojuma kods' },
   { id: 'desc', label: 'Apraksts' },
-  { id: 'price', label: 'Cena' }
+  { id: 'price', label: 'Cena'}
 ];
 
 let inventory = [
@@ -69,10 +54,36 @@ const myGlobalActions = [
 ];
 
 const handleAction = ({ action, item }) => {
+  if (!item) {
+    console.log(`No item`);
+    return;
+  }
   console.log(`Executing ${action} for`, item.name);
   if (action === 'delete') {
     // Logic for deleting
   }
+};
+const handleGlobalAction = ({ globalAction}) => {
+  console.log(`Executing global ${globalAction}`)
+  if (globalAction === 'add-part') {
+    console.log("add the stupiddd part")
+    isAdding = true;
+  }
+};
+
+const isAdding = ref(false);
+
+const inventoryFields = [
+  { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
+  { id: 'sku', type: 'text', label: 'SKU Kods', required: true },
+  { id: 'warehouse', type: 'select', label: 'Noliktava', options: ['Rīga-A', 'Ogre-1'], required: true },
+  { id: 'price', type: 'number', label: 'Cena (€)' },
+  { id: 'desc', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true }
+];
+
+const handleSave = (newData) => {
+  console.log("Saving to Database:", newData);
+  isAdding.value = false;
 };
 </script>
 
@@ -83,7 +94,7 @@ const handleAction = ({ action, item }) => {
       v-model="activeFilters" 
       :config="sidebarConfig" 
     />
-    <main>
+    <main v-if="!isAdding">
       <NavBar />
       <div class="page-content">
         <DataTable 
@@ -92,9 +103,17 @@ const handleAction = ({ action, item }) => {
           :rowActions="myRowActions"
           :globalActions="myGlobalActions"
           @action="handleAction"
-          @globalAction="(id) => console.log('Global:', id)"
+          @globalAction="(id) => { console.log(`Executing global ${id}`); if (id === 'add-part') { console.log(`add the stupiddd part`); isAdding = true; }}"
         />
       </div>
+    </main>
+    <main v-else class="flex justify-center pt-10">
+      <DynamicForm 
+        title="Jaunas detaļas reģistrācija"
+        :fields="inventoryFields"
+        @submit="handleSave"
+        @cancel="isAdding = false"
+      />
     </main>
   </div>
 </template>
