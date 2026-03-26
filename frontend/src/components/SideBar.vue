@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import SideBarSliderInput from './SideBarSliderInput.vue';
 import SideBarTextInput from './SideBarTextInput.vue';
 import SideBarSearchInput from './SideBarSearchInput.vue';
+import SideBarCheckBoxInput from './SideBarCheckBoxInput.vue';
 
 const props = defineProps({
   title: { type: String, default: 'Meklēšana' },
@@ -17,7 +18,8 @@ const emit = defineEmits(['update:modelValue']);
 const componentMap = {
   text: SideBarTextInput,
   search: SideBarSearchInput,
-  slider: SideBarSliderInput
+  slider: SideBarSliderInput,
+  checkbox: SideBarCheckBoxInput
 };
 
 const updateFilter = (id, value) => {

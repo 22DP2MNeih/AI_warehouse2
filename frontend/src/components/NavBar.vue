@@ -127,7 +127,7 @@ onMounted(() => {
 const tabs = [
   {id: "parts", text: "Detaļu izvēlne", link: "/parts"}, 
   {id: "company", text: "Uzņēmums", link: "/company"},
-  {id: "order", text: "Pasūtījumi", link: "/order"},
+  {id: "order", text: "Pasūtījumi", link: "/orders"},
   {id: "warehouse", text: "Noliktva", link: "/warehouse"},
   {id: "options", text: "Iestatījumi", link: "/options"}
 ]
