@@ -4,7 +4,6 @@ import { onMounted, ref } from 'vue';
 const themeLabel = ref(null);
 const isDarkMode = ref(false);
 
-// The original ThemeVisualizer class adapted for Vue
 class ThemeVisualizer {
   constructor(canvasId, containerId, labelRef) {
     this.canvas = document.getElementById(canvasId);
@@ -129,7 +128,8 @@ const tabs = [
   {id: "company", text: "Uzņēmums", link: "/company"},
   {id: "order", text: "Pasūtījumi", link: "/orders"},
   {id: "warehouse", text: "Noliktva", link: "/warehouse"},
-  {id: "options", text: "Iestatījumi", link: "/options"}
+  {id: "options", text: "Iestatījumi", link: "/options"},
+  {id: "ai_predictions", text: "MI ieteikumi", link: "/ai_predictions"},
 ]
 
 </script>
@@ -138,12 +138,6 @@ const tabs = [
   <header>
     <ul class="tabs">
       <li v-for="tab in tabs" :key="tab.id"><router-link :to="tab.link">{{ tab.text }}</router-link></li>
-      <!-- <li>Detaļu izvēlne</li>
-      <li class="active">Uzņēmums</li>
-      <li>Pasūtījumi</li>
-      <li>Noliktava</li>
-      <li>Finanses</li>
-      <li>Iestatījumi</li> -->
     </ul>
 
     <div class="header-tools">

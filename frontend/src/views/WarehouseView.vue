@@ -34,16 +34,8 @@ let inventory = [
   { name: "Amortizators", vin: "WBA998877", sku: "AM-100", warehouse: "Rīga-B", available: 4, locCode: "X-01-4", desc: "Gāzes, aizmugurējais", price: 85.00 }
 ];
 
-// const tableCols = [
-//   { id: 'name', label: 'Nosaukums' },
-//   { id: 'vin', label: 'VIN' },
-//   { id: 'warehouse', label: 'Noliktava' },
-//   { id: 'price', label: 'Cena' }
-// ];
-
 const myRowActions = [
   { id: 'use_part', label: 'Izmantot detaļu' },
-  // { id: 'edit', label: 'Rediģēt' },
   { id: 'delete', label: 'Dzēst', class: 'btn-danger' }
 ];
 
@@ -89,7 +81,6 @@ const handleSave = (newData) => {
 
 <template>
   <div class="app-wrapper">
-    <!-- <SideBar /> -->
      <SideBar 
       v-model="activeFilters" 
       :config="sidebarConfig" 
@@ -119,7 +110,6 @@ const handleSave = (newData) => {
 </template>
 
 <style>
-/* Global resets and variables */
 :root {
   --bg-color: #f8fafc;
   --primary-blue: #2563eb;

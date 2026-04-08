@@ -1,18 +1,18 @@
 <script setup>
 import { ref, computed } from 'vue';
 
+// Tabulas dati un pogas
 const props = defineProps({
-  columns: { type: Array, required: true }, // [{ id: 'name', label: 'Nosaukums', sortable: true }]
-  data: { type: Array, required: true },    // Raw inventory/user/order data
-  filters: { type: Object, default: () => ({}) }, // From the Sidebar
-  rowActions: { type: Array, default: () => [] }, // ['edit', 'delete', 'use']
-  globalActions: { type: Array, default: () => [] } // ['add-part', 'add-user']
+  columns: { type: Array, required: true },
+  data: { type: Array, required: true },
+  filters: { type: Object, default: () => ({}) },
+  rowActions: { type: Array, default: () => [] },
+  globalActions: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(['action', 'globalAction']);
 
-// --- Multi-Column Sort State ---
-// Elements: { fieldId, direction: 'asc' | 'desc' }
+// Kārtošanas secība
 const sortStack = ref([]);
 
 const handleSort = (fieldId) => {
@@ -20,32 +20,39 @@ const handleSort = (fieldId) => {
   
   if (existingIdx === -1) {
     sortStack.value.push({ fieldId, direction: 'asc' });
+
   } else {
     const current = sortStack.value[existingIdx];
+
     if (current.direction === 'asc') {
       current.direction = 'desc';
+
     } else {
       sortStack.value.splice(existingIdx, 1);
     }
   }
 };
 
-// --- The Logic Engine (Filter + Multi-Sort) ---
+// Datu filtrēšana
 const processedData = computed(() => {
   let result = [...props.data];
 
-  // 1. Filter Logic
   result = result.filter(item => {
     return Object.keys(props.filters).every(key => {
       const filterVal = props.filters[key];
+
       if (!filterVal) return true;
+      if (!(key in item)) return true; 
+
       return String(item[key]).toLowerCase().includes(String(filterVal).toLowerCase());
     });
   });
 
-  // 2. Multi-column Sort Logic
+  // Pati kārtošana
   if (sortStack.value.length > 0) {
     result.sort((a, b) => {
+
+      // Katrai kārtošanas secībai
       for (let rule of sortStack.value) {
         const valA = a[rule.fieldId];
         const valB = b[rule.fieldId];
@@ -134,7 +141,9 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 </template>
 
 <style scoped>
-.table-container { width: 100%; }
+.table-container { 
+  width: 100%; 
+}
 
 .table-controls {
   display: flex;
@@ -161,10 +170,17 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   transition: color 0.2s;
 }
 
-.table-header:hover { color: #2563eb; }
+.table-header:hover { 
+  color: #2563eb; 
+}
 
-.row-item { transition: background-color 0.2s; }
-.row-item:hover { background-color: #eff6ff; }
+.row-item {
+ transition: background-color 0.2s; 
+}
+
+.row-item:hover {
+ background-color: #eff6ff;
+}
 
 .row-item td {
   padding: 22px 0;
@@ -175,16 +191,15 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 .accent-marker {
   position: absolute;
   left: 0;
-  top: 50%;
+  top: 100%;
   transform: translateY(-50%);
-  width: 4px; /* Slightly thicker for visibility */
-  height: 60%;
+  width: 70%;
+  height: 4px;
   background-color: #2563eb;
   opacity: 0.4;
   border-radius: 0 4px 4px 0;
 }
 
-/* Original Components Styling */
 .btn-primary-action {
   padding: 8px 16px;
   border: 1.5px solid #2563eb;
@@ -203,8 +218,14 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   color: white;
 }
 
-.btn-danger { color: #ef4444; border-color: #ef4444; }
-.btn-danger:hover { background: #ef4444; color: white; }
+.btn-danger {
+  color: #ef4444;
+  border-color: #ef4444; 
+}
+.btn-danger:hover { 
+  background: #ef4444; 
+  color: white;
+}
 
 .stats-badge {
   background: #eff6ff;
@@ -215,7 +236,11 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   font-size: 0.85rem;
 }
 
-.sort-indicator { margin-left: 4px; color: #2563eb; }
+.sort-indicator {
+  margin-left: 4px;
+  color: #2563eb;
+}
+
 .priority-badge {
   font-size: 0.65rem;
   background: #e2e8f0;
@@ -225,5 +250,8 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   vertical-align: middle;
 }
 
-.action-cell { display: flex; gap: 8px; }
+.action-cell {
+  display: flex;
+  gap: 8px;
+}
 </style>

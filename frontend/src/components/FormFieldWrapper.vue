@@ -1,3 +1,7 @@
+<script setup>
+defineProps(['id', 'label', 'required', 'error']);
+</script>
+
 <template>
   <div class="form-field">
     <label :for="id" class="field-label">
@@ -8,10 +12,6 @@
     <p v-if="error" class="error-text">{{ error }}</p>
   </div>
 </template>
-
-<script setup>
-defineProps(['id', 'label', 'required', 'error']);
-</script>
 
 <style scoped>
 .form-field { margin-bottom: 24px; }

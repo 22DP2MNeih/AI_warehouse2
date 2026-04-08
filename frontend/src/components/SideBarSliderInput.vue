@@ -46,7 +46,6 @@ const updateValue = (val) => {
   let num = parseFloat(val);
   if (isNaN(num)) num = props.min;
   
-  // Optional: Clamp values between min and max
   const clamped = Math.max(props.min, Math.min(props.max, num));
   emit('update:modelValue', clamped);
 };

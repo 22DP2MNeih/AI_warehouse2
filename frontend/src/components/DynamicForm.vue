@@ -13,9 +13,11 @@ const emit = defineEmits(['submit', 'cancel']);
 const formData = ref({ ...props.initialData });
 const errors = ref({});
 
+// Izdara validāciju
 const handleSubmit = () => {
-  // Simple Validation
   let valid = true;
+
+  // Pārbauda vai lauki, kuri ir obligāti ir izpildīti
   props.fields.forEach(f => {
     if (f.required && !formData.value[f.id]) {
       errors.value[f.id] = 'Šis lauks ir obligāts';
