@@ -9,7 +9,7 @@ const props = defineProps({
   submitLabel: { type: String, default: 'Saglabāt' }
 });
 
-const emit = defineEmits(['submit', 'cancel']);
+const emit = defineEmits(['submit', 'cancel', 'btn_press']);
 const formData = ref({ ...props.initialData });
 const errors = ref({});
 
@@ -98,7 +98,6 @@ const handleSubmit = () => {
 
 .form-input:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-actions {
