@@ -6,6 +6,7 @@ const props = defineProps({
   title: String,
   fields: Array, // [{ id: 'name', type: 'text', label: 'Nosaukums', required: true }]
   initialData: Object,
+  options: {CancelEnabled: true},
   submitLabel: { type: String, default: 'Saglabāt' }
 });
 
@@ -38,29 +39,31 @@ const handleSubmit = () => {
 
     <form @submit.prevent="handleSubmit" class="form-grid">
       <div v-for="field in fields" :key="field.id" :class="field.fullWidth ? 'col-span-2' : ''">
-        <FormFieldWrapper :id="field.id" :label="field.label" :required="field.required" :error="errors[field.id]">
-          
-          <input v-if="field.type === 'text' || field.type === 'number'"
-            :type="field.type"
-            v-model="formData[field.id]"
-            class="form-input"
-            :placeholder="field.placeholder"
-          />
+        <slot :name="field.id" :field="field" :formData="formData" :errors="errors">
+          <FormFieldWrapper :id="field.id" :label="field.label" :required="field.required" :error="errors[field.id]">
+            
+            <input v-if="field.type === 'text' || field.type === 'number'"
+              :type="field.type"
+              v-model="formData[field.id]"
+              class="form-input"
+              :placeholder="field.placeholder"
+            />
 
-          <select v-else-if="field.type === 'select'" v-model="formData[field.id]" class="form-input">
-            <option value="" disabled>{{ field.placeholder || 'Izvēlieties...' }}</option>
-            <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-          </select>
+            <select v-else-if="field.type === 'select'" v-model="formData[field.id]" class="form-input">
+              <option value="" disabled>{{ field.placeholder || 'Izvēlieties...' }}</option>
+              <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
 
-          <textarea v-else-if="field.type === 'textarea'"
-            v-model="formData[field.id]"
-            class="form-input min-h-[100px]"
-          ></textarea>
-        </FormFieldWrapper>
+            <textarea v-else-if="field.type === 'textarea'"
+              v-model="formData[field.id]"
+              class="form-input min-h-[100px]"
+            ></textarea>
+          </FormFieldWrapper>
+        </slot>
       </div>
 
       <div class="form-actions col-span-2">
-        <button type="button" class="btn-secondary" @click="emit('cancel')">Atcelt</button>
+        <button v-if="options.CancelEnabled.value === true" type="button" class="btn-secondary" @click="emit('cancel')">Atcelt</button>
         <button type="submit" class="btn-primary-action">{{ submitLabel }}</button>
       </div>
     </form>

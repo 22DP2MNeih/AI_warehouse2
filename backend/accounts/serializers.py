@@ -26,12 +26,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", value):
              raise serializers.ValidationError("Please enter a valid, logical email address.")
+        
+        # Pārbauda vai e-pasts existē
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        
         return value
 
     def create(self, validated_data):
         
         user = User.objects.create_user(
-            email=validated_data.get('email', ''),
+            username=validated_data.get('email'),
+            email=validated_data.get('email'),
             password=validated_data['password'],
             role=validated_data.get('role', 'MECHANIC'),
         )

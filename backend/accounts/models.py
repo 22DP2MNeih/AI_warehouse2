@@ -11,4 +11,10 @@ class CustomUser(AbstractUser):
         ('WAREHOUSE_MANAGER', 'Noliktavas vadītājs'),
         ('MECHANIC', 'Mehāniķis'),
     )
+    username = models.CharField(max_length=20, default='', unique=True)
+    # email = models.EmailField(unique=True)
+    
+    # This is the crucial line:
+    # USERNAME_FIELD = 'email'
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MECHANIC')
+    email = models.CharField(max_length=20, default='')

@@ -1,18 +1,33 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import FormFieldWrapper from '../components/FormFieldWrapper.vue';
 import DynamicForm from '../components/DynamicForm.vue';
+import { useAuthStore } from '../stores/auth';
+import { useConfigStore } from '../stores/config';
 
+const router = useRouter();
+const authStore = useAuthStore();
+const configStore = useConfigStore();
+const t = computed(() => configStore.t);
 
 const loginFields = [
-  { id: 'email', type: 'text', label: 'E-pasts', required: true },
-  { id: 'password', type: 'text', label: 'Parole', required: true },
+  { id: 'email', type: 'email', label: 'E-pasts', required: true },
+  { id: 'password', type: 'password', label: 'Parole', required: true },
 ];
 const registerFields = [
-  { id: 'email', type: 'text', label: 'E-pasts', required: true },
-  { id: 'password', type: 'text', label: 'Parole', required: true },
+  { id: 'email', type: 'email', label: 'E-pasts', required: true },
+  { id: 'password', type: 'password', label: 'Parole', required: true },
   { id: 'role', type: 'text', label: 'Loma', required: true },
 ];
+
+// const props = defineProps({
+//   title: String,
+//   fields: Array, // [{ id: 'name', type: 'text', label: 'Nosaukums', required: true }]
+//   initialData: Object,
+//   options: {CancelEnabled: true},
+//   submitLabel: { type: String, default: 'Saglabāt' }
+// });
 
 const isLogin = ref(true);
 const loginErrors = ref("");
@@ -20,6 +35,7 @@ const loginErrors = ref("");
 const fields = computed(() => {
   return isLogin.value ? loginFields : registerFields;
 });
+
 const submitLabel = computed(() => {
   return isLogin.value ? "Login" : "Sign in";
 });
@@ -31,42 +47,96 @@ const changeLabel = computed(() => {
 });
 const switchLogin = () => {
   isLogin.value = !isLogin.value;
+  // props.fields.value = isLogin.value ? loginFields : registerFields;
 };
 
+// const formData = ref({ ...props.fields });
+const formData = computed(() => { return isLogin.value ? loginFields : registerFields;});
+const errors = ref({});
 
-const handleSave = (userInfo) => {
-  if (isLogin) {
-    console.log("Logging in", userInfo);
+const handleSubmit = () => {
+  if (isLogin.value === true) {
+    console.log("Loging in ");
   } else {
-    console.log("Registring", userInfo);
+    console.log("Registring ");
   }
-};
+  let valid = true;
 
+  // Pārbauda vai lauki, kuri ir obligāti ir izpildīti
+  props.fields.forEach(f => {
+    if (f.required && !formData.value[f.id]) {
+      errors.value[f.id] = 'Šis lauks ir obligāts';
+      valid = false;
+    }
+  });
+
+  if (valid) emit('submit', formData.value);
+};
+const error = ref(null);
 const handleRegister = async () => {
-    loading.value = true;
+  if (isLogin.value === true) {
+    console.log("Loging in ");
+  } else {
+    console.log("Registring ");
+  }
+  let valid = true;
+
+  // Pārbauda vai lauki, kuri ir obligāti ir izpildīti
+  fields.value.forEach(field => {
+    if (field.required && !fields.value[field.id]) {
+      errors.value[field.id] = 'Šis lauks ir obligāts';
+      valid = false;
+    }
+  });
+  console.log(errors.value);
+  console.log(valid);
+  console.log(fields.value);
+
+  if (valid) {
     error.value = null;
+    console.log("valid");
     try {
-        await authStore.register(form.value);
+        if (isLogin.value === false) {
+            const registerData = {
+                email: fields.value.email,
+                password: fields.value.password,
+                role: fields.value.role
+            }
+            await authStore.register(registerData);
+            console.log("authStore");
+        }
         // After register, log them in automatically
         await authStore.login({
-            username: form.value.username,
-            password: form.value.password
+            username: fields.value.email,
+            password: fields.value.password
         });
         router.push('/');
     } catch (err) {
+        if (error.response && error.response.status === 400) {
+            // Access the specific error message from Django
+            const backendError = error.response.data.email 
+              ? error.response.data.email[0] 
+              : "Registration failed. Please check your details.";
+            
+            alert(backendError); // Or set a 'errorMessage' reactive variable
+        }
+        console.log(err)
         if (err.response && err.response.data) {
             // Handle validation errors
             const msgs = Object.values(err.response.data).flat();
             error.value = msgs.join(' ');
+            console.log("error msgs")
         } else {
-            error.value = t.value('auth.regFailed');
+            // error.value = t.value('auth.regFailed');
+            error.value = "login failed"
+            console.log("error login failed")
         }
     } finally {
-        loading.value = false;
     }
+  }
 };
 
-console.log(fields.value[0].id);
+// console.log(fields.value[0].id);
 
 </script>
 
@@ -76,15 +146,25 @@ console.log(fields.value[0].id);
       <div class="form-wrapper">
         <div class="form-container">
           <div class="form-header">
-            <h2 class="form-title">{{ title }}</h2>
+            <h2 class="form-title">{{ submitLabel }}</h2>
             <div class="accent-line"></div>
           </div>
+          <!-- <DynamicForm 
+              title="Jauna pasūtījuma izveide"
+              :fields="orderFormFields"
+              submitLabel="Apstiprināt pasūtījumu"
+              @submit="handleFormSubmit"
+              @cancel="isCreatingOrder.value = false"
+            >
+            <template>s
 
-          <form @submit.prevent="handleSubmit" class="form-grid">
+            </template>
+          </DynamicForm> -->
+          <form @submit.prevent="handleRegister" class="form-grid">
             <div v-for="field in fields" :key="field.id" :class="field.fullWidth ? 'col-span-2' : ''">
               <FormFieldWrapper :id="field.id" :label="field.label" :required="field.required">
                 
-                <input v-if="field.type === 'text' || field.type === 'number'"
+                <input v-if="field.type === 'password' || field.type === 'email' || field.type === 'text' || field.type === 'number'"
                   :type="field.type"
                   v-model="fields[field.id]"
                   class="form-input"
@@ -104,8 +184,9 @@ console.log(fields.value[0].id);
             </div>
 
             <div class="form-actions col-span-2">
-              <button type="submit" class="btn-primary-action" @click="handleRegister">{{ submitLabel }}</button>
-              <a type="submit" class="" @click="switchLogin">{{ changeLabel }}</a>
+              <!-- <button type="submit" class="btn-primary-action" @click="handleRegister">{{ submitLabel }}</button> -->
+              <button type="submit" class="btn-primary-action">{{ submitLabel }}</button>
+              <a class="" @click="switchLogin">{{ changeLabel }}</a>
               <div v-if="errorsExist" class="login-errors">{{ loginErrors }}</div>
             </div>
           </form>

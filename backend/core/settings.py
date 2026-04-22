@@ -134,3 +134,6 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
+# Parāda cors kļūdas arī ja kods dod kļūdu
+CORS_ALLOW_ALL_ORIGINS = True
