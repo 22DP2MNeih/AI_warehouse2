@@ -1,9 +1,49 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import api from '../services/api';
 import SideBar from '../components/SideBar.vue';
 import NavBar from '../components/NavBar.vue';
 import DataTable from '../components/DataTable.vue';
 import DynamicForm from '../components/DynamicForm.vue';
+
+
+const canAddPart = computed(() => {
+    return ['ADMIN', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
+});
+
+const canRequestPart = computed(() => {
+    return authStore.userRole === 'MECHANIC';
+});
+// const response = await api.getInventory();
+// console.log(response.data);
+const inventory = ref([]);
+
+onMounted(async () => {
+    try {
+        const response = await api.getInventory();
+        console.log(response.data);
+        inventory.value = response.data;
+    } catch (err) {
+        // 4. Use translation in JS logic
+        // error.value = t.value('inventory.errorLoad'); 
+        console.error(err);
+    } finally {
+        loading.value = false;
+    }
+});
+
+const handleDeleted = (id) => {
+    parts.value = parts.value.filter(p => p.id !== id);
+};
+
+const handleUpdate = async () => {
+    try {
+        const response = await api.getInventory();
+        parts.value = response.data;
+    } catch (err) {
+        console.error(err);
+    }
+};
 
 const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
@@ -15,24 +55,24 @@ const sidebarConfig = [
 ];
 
 const tableCols = [
-  { id: 'name', label: 'Nosaukums' },
+  { id: 'product_name', label: 'Nosaukums' },
   { id: 'vin', label: 'VIN' },
   { id: 'sku', label: 'SKU' },
-  { id: 'warehouse', label: 'Noliktava'},
-  { id: 'available', label: 'Pieejams'},
-  { id: 'locCode', label: 'Novietojuma kods' },
-  { id: 'desc', label: 'Apraksts' },
+  { id: 'warehouse_name', label: 'Noliktava'},
+  { id: 'quantity', label: 'Pieejams'},
+  { id: 'location', label: 'Novietojuma kods' },
+  { id: 'description', label: 'Apraksts' },
   { id: 'price', label: 'Cena'}
 ];
 
-let inventory = [
-  { name: "Bremžu kluči", vin: "VF312345678", sku: "BK-9901", warehouse: "Rīga-A", available: 12, locCode: "A-12-3", desc: "Priekšējie keramiskie", price: 45.50 },
-  { name: "Eļļas filtrs", vin: "WBA998877", sku: "EF-002", warehouse: "Rīga-A", available: 45, locCode: "B-01-1", desc: "Sintētiskajai eļļai", price: 8.20 },
-  { name: "Zobsiksna", vin: "TMB112233", sku: "ZS-554", warehouse: "Ogre-1", available: 3, locCode: "C-05-9", desc: "Pastiprinātā", price: 120.00 },
-  { name: "Aizdedzes svece", vin: "UU1223344", sku: "AS-12", warehouse: "Rīga-A", available: 24, locCode: "A-02-1", desc: "Iridija", price: 15.00 },
-  { name: "Gaisa filtrs", vin: "VF312345678", sku: "GF-77", warehouse: "Valmiera", available: 8, locCode: "V-09-2", desc: "Standarta", price: 12.50 },
-  { name: "Amortizators", vin: "WBA998877", sku: "AM-100", warehouse: "Rīga-B", available: 4, locCode: "X-01-4", desc: "Gāzes, aizmugurējais", price: 85.00 }
-];
+// let inventory = [
+//   { name: "Bremžu kluči", vin: "VF312345678", sku: "BK-9901", warehouse: "Rīga-A", available: 12, locCode: "A-12-3", desc: "Priekšējie keramiskie", price: 45.50 },
+//   { name: "Eļļas filtrs", vin: "WBA998877", sku: "EF-002", warehouse: "Rīga-A", available: 45, locCode: "B-01-1", desc: "Sintētiskajai eļļai", price: 8.20 },
+//   { name: "Zobsiksna", vin: "TMB112233", sku: "ZS-554", warehouse: "Ogre-1", available: 3, locCode: "C-05-9", desc: "Pastiprinātā", price: 120.00 },
+//   { name: "Aizdedzes svece", vin: "UU1223344", sku: "AS-12", warehouse: "Rīga-A", available: 24, locCode: "A-02-1", desc: "Iridija", price: 15.00 },
+//   { name: "Gaisa filtrs", vin: "VF312345678", sku: "GF-77", warehouse: "Valmiera", available: 8, locCode: "V-09-2", desc: "Standarta", price: 12.50 },
+//   { name: "Amortizators", vin: "WBA998877", sku: "AM-100", warehouse: "Rīga-B", available: 4, locCode: "X-01-4", desc: "Gāzes, aizmugurējais", price: 85.00 }
+// ];
 
 const myRowActions = [
   { id: 'use_part', label: 'Izmantot detaļu' },
@@ -66,11 +106,11 @@ const handleGlobalAction = ({ globalAction}) => {
 const isAdding = ref(false);
 
 const inventoryFields = [
-  { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
+  { id: 'product_name', type: 'text', label: 'Detaļas Nosaukums', required: true },
   { id: 'sku', type: 'text', label: 'SKU Kods', required: true },
-  { id: 'warehouse', type: 'select', label: 'Noliktava', options: ['Rīga-A', 'Ogre-1'], required: true },
+  { id: 'warehouse_name', type: 'select', label: 'Noliktava', options: ['Rīga-A', 'Ogre-1'], required: true },
   { id: 'price', type: 'number', label: 'Cena (€)' },
-  { id: 'desc', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true }
+  { id: 'description', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true }
 ];
 
 const handleSave = (newData) => {

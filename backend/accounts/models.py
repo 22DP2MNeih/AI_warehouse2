@@ -18,3 +18,12 @@ class CustomUser(AbstractUser):
     # USERNAME_FIELD = 'email'
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MECHANIC')
     email = models.CharField(max_length=20, default='')
+
+    company = models.ForeignKey('inventory.Company', on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')
+    warehouse = models.ForeignKey('inventory.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='staff')
+
+    def __str__(self):
+        org = f"{self.company.name}" if self.company else "Nav uzņēmuma"
+        if self.warehouse:
+            org += f" - {self.warehouse.name}"
+        return f"{self.username} ({self.get_role_display()}) @ {org}"

@@ -20,6 +20,12 @@ const registerFields = [
   { id: 'password', type: 'password', label: 'Parole', required: true },
   { id: 'role', type: 'text', label: 'Loma', required: true },
 ];
+const loginRedirect = {
+  'ADMIN': '/ai_predictions',
+  'CEO': '/company',
+  'WAREHOUSE_MANAGER': '/warehouse',
+  'MECHANIC': '/warehouse',
+}
 
 // const props = defineProps({
 //   title: String,
@@ -110,7 +116,8 @@ const handleRegister = async () => {
             username: fields.value.email,
             password: fields.value.password
         });
-        router.push('/');
+        console.log(authStore.userRole);
+        router.push(loginRedirect[authStore.userRole]);
     } catch (err) {
         if (error.response && error.response.status === 400) {
             // Access the specific error message from Django

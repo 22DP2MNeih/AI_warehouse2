@@ -190,10 +190,10 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 
 .accent-marker {
   position: absolute;
-  left: 0;
+  left: 30%;
   top: 100%;
   transform: translateY(-50%);
-  width: 70%;
+  width: 100%;
   height: 4px;
   background-color: #2563eb;
   opacity: 0.4;

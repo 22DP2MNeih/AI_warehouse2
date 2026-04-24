@@ -7,10 +7,12 @@ import re
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     email = serializers.EmailField(required=True)
+    company_name = serializers.CharField(write_only=True, required=False)
+    warehouse_name = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'role')
+        fields = ('username', 'email', 'password', 'role', 'company_name', 'warehouse_name')
 
     def validate_password(self, value):
         if len(value) < 8:
@@ -26,24 +28,34 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", value):
              raise serializers.ValidationError("Please enter a valid, logical email address.")
-        
-        # Pārbauda vai e-pasts existē
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        
         return value
 
     def create(self, validated_data):
+        from inventory.models import Company, Warehouse
+        
+        company_name = validated_data.pop('company_name', "Default Company")
+        warehouse_name = validated_data.pop('warehouse_name', "Main Warehouse")
+        
+        # 1. Ensure Company exists
+        company, _ = Company.objects.get_or_create(name=company_name)
+        
+        # 2. Ensure Warehouse exists in that company
+        warehouse, _ = Warehouse.objects.get_or_create(
+            company=company, 
+            name=warehouse_name
+        )
         
         user = User.objects.create_user(
-            username=validated_data.get('email'),
-            email=validated_data.get('email'),
+            username=validated_data['email'],
+            email=validated_data['email'],
             password=validated_data['password'],
             role=validated_data.get('role', 'MECHANIC'),
+            company=company,
+            warehouse=warehouse
         )
         return user
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'role')
+        fields = ('id', 'username', 'email', 'role')
