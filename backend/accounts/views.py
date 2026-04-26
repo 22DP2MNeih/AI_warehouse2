@@ -3,9 +3,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import UserRegistrationSerializer, UserSerializer
 from django.contrib.auth import get_user_model
+# accounts/views.py (or wherever your token view is)
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 
 User = get_user_model()
 
+
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    permission_classes = [AllowAny] # This MUST be AllowAny
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer

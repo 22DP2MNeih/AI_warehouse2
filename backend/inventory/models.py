@@ -166,6 +166,22 @@ class WarehouseStock(models.Model):
 
     def __str__(self):
         return f"{self.company_product.product.name} in {self.warehouse.name}: {self.quantity}"
+    
+    # NEW: Warehouse-specific price. If null, we use the CompanyProduct price.
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="Overwrites company price for this specific warehouse."
+    )
+
+    def get_effective_price(self):
+        """
+        Returns the warehouse-specific price if set, 
+        otherwise falls back to the company-level price.
+        """
+        return self.price if self.price is not None else self.company_product.price
 
 # DARĪJUMI UN KUSTĪBA
 # Visas inventāra izmaiņas tiek reģistrētas caur pasūtījumiem (SALE, TRANSFER, CONSUME u.c.).

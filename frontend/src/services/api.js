@@ -1,25 +1,25 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
-  // baseURL: 'http://localhost:8000/api',
   // baseURL: 'http://localhost:5173/api',
+  baseURL: 'http://127.0.0.1:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 // Add request interceptor
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  
+  // Do NOT send the old token if we are trying to log in or register
+  const isAuthRequest = config.url.includes('auth/token') || config.url.includes('auth/register');
+
+  if (token && !isAuthRequest) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
 
 // Add response interceptor (optional: handle 401)
 apiClient.interceptors.response.use(

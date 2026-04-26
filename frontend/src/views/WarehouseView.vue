@@ -28,7 +28,7 @@ onMounted(async () => {
         // error.value = t.value('inventory.errorLoad'); 
         console.error(err);
     } finally {
-        loading.value = false;
+        // loading.value = false;
     }
 });
 
@@ -143,7 +143,7 @@ const handleSave = (newData) => {
         title="Jaunas detaļas reģistrācija"
         :fields="inventoryFields"
         @submit="handleSave"
-        @cancel="isAdding = false"
+        @cancel="isAdding.value = false"
       />
     </main>
   </div>

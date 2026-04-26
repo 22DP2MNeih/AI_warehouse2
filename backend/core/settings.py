@@ -117,6 +117,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
@@ -124,7 +126,11 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+        # 'rest_framework.authentication.SessionAuthentication', # Optional
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
 
 from datetime import timedelta
@@ -137,3 +143,5 @@ SIMPLE_JWT = {
 
 # Parāda cors kļūdas arī ja kods dod kļūdu
 CORS_ALLOW_ALL_ORIGINS = True
+
+USE_TZ = False

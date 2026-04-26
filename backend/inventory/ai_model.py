@@ -182,7 +182,8 @@ class InventoryForecastModel:
         Veic prognozi konkrētai precei, izmantojot pēdējo dienu vēsturi.
         """
         end_date = timezone.now().date()
-        start_date = end_date - timedelta(days=self.sequence_length - 1)
+        # start_date = end_date - timedelta(days=self.sequence_length - 1)
+        start_date = timezone.now().date() - 1
         
         filter_kwargs = {
             'product_listing_id': product_listing_id,
