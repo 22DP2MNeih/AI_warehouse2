@@ -5,10 +5,13 @@ import SideBar from '../components/SideBar.vue';
 import NavBar from '../components/NavBar.vue';
 import DataTable from '../components/DataTable.vue';
 import DynamicForm from '../components/DynamicForm.vue';
+import { useAuthStore } from '../stores/auth';
 
+
+const authStore = useAuthStore();
 
 const canAddPart = computed(() => {
-    return ['ADMIN', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
+    return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
 });
 
 const canRequestPart = computed(() => {
@@ -17,12 +20,17 @@ const canRequestPart = computed(() => {
 // const response = await api.getInventory();
 // console.log(response.data);
 const inventory = ref([]);
+const warehouses = ref([]);
 
 onMounted(async () => {
     try {
-        const response = await api.getInventory();
-        console.log(response.data);
-        inventory.value = response.data;
+        const [inventoryRes, warehouseRes] = await Promise.all([
+            api.getInventory(),
+            api.getWarehouses()
+        ]);
+        
+        inventory.value = inventoryRes.data;
+        warehouses.value = warehouseRes.data; // Fill the ref
     } catch (err) {
         // 4. Use translation in JS logic
         // error.value = t.value('inventory.errorLoad'); 
@@ -48,10 +56,10 @@ const handleUpdate = async () => {
 const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
   { id: 'location', type: 'text', label: 'Atrašanās vieta' },
-  { id: 'postal_code', type: 'text', label: 'Pasta indekss' },
-  { id: 'service_level', type: 'slider', label: 'Servisa Līmenis', modelValue: 97.8, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  { id: 'weight', type: 'slider', label: 'Svērums', modelValue: 93.6, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  { id: 'procurement_priorities', type: 'slider', label: 'Iegādes prioritātes', modelValue: 95.9, min: 90, max: 99.5, step: 0.1, unit: '%' },
+  // { id: 'postal_code', type: 'text', label: 'Pasta indekss' },
+  // { id: 'service_level', type: 'slider', label: 'Servisa Līmenis', modelValue: 97.8, min: 90, max: 99.5, step: 0.1, unit: '%' },
+  // { id: 'weight', type: 'slider', label: 'Svērums', modelValue: 93.6, min: 90, max: 99.5, step: 0.1, unit: '%' },
+  // { id: 'procurement_priorities', type: 'slider', label: 'Iegādes prioritātes', modelValue: 95.9, min: 90, max: 99.5, step: 0.1, unit: '%' },
 ];
 
 const tableCols = [
@@ -74,10 +82,22 @@ const tableCols = [
 //   { name: "Amortizators", vin: "WBA998877", sku: "AM-100", warehouse: "Rīga-B", available: 4, locCode: "X-01-4", desc: "Gāzes, aizmugurējais", price: 85.00 }
 // ];
 
-const myRowActions = [
-  { id: 'use_part', label: 'Izmantot detaļu' },
-  { id: 'delete', label: 'Dzēst', class: 'btn-danger' }
+// const myRowActions = [
+//   { id: 'use_part', label: 'Izmantot detaļu' },
+//   { id: 'delete', label: 'Dzēst', class: 'btn-danger' }
+// ];
+const rowActionsWHMngr = [
+  { id: 'order', label: 'Izveidot pasūtījumu' },
 ];
+const rowActionsMech = [
+  { id: 'order', label: 'Izveidot pasūtījumu' },
+  { id: 'use_part', label: 'Izmantot detaļu' },
+];
+
+const rowActions = computed( () => {
+  console.log(authStore.userRole);
+  return canAddPart.value? rowActionsWHMngr : rowActionsMech;
+})
 
 const myGlobalActions = [
   { id: 'add-part', label: 'Pievienot detaļu' },
@@ -90,32 +110,66 @@ const handleAction = ({ action, item }) => {
     console.log(`No item`);
     return;
   }
-  console.log(`Executing ${action} for`, item.name);
-  if (action === 'delete') {
+  console.log(`Executing ${action} for`, item.product_name);
+  if (action === 'use_part') {
     // Logic for deleting
   }
 };
-const handleGlobalAction = ({ globalAction}) => {
-  console.log(`Executing global ${globalAction}`)
-  if (globalAction === 'add-part') {
-    console.log("add the stupiddd part")
-    isAdding = true;
+
+const handleGlobalAction = (id) => { // Usually passed as a single ID/string from the component
+  console.log(`Executing global ${id}`);
+  
+  if (id === 'add-part') {
+    console.log("add the stupiddd part");
+    
+    // Use .value to update the ref
+    // Access inventoryFields (computed) directly or via .value
+    formFields.value = inventoryFields.value; 
+    
+    // formOpen is a ref, so use .value
+    formOpen.value = true; 
   }
 };
 
-const isAdding = ref(false);
+const formOpen = ref(false);
 
-const inventoryFields = [
-  { id: 'product_name', type: 'text', label: 'Detaļas Nosaukums', required: true },
-  { id: 'sku', type: 'text', label: 'SKU Kods', required: true },
-  { id: 'warehouse_name', type: 'select', label: 'Noliktava', options: ['Rīga-A', 'Ogre-1'], required: true },
-  { id: 'price', type: 'number', label: 'Cena (€)' },
-  { id: 'description', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true }
-];
+const inventoryFields = computed(() => [
+  { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
+  { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true },
+  { id: 'location', type: 'text', label: 'Novietojums', required: true },
+  { id: 'vin_input', type: 'text', label: 'VIN Kods', required: true },
+  { 
+    id: 'warehouse_id', // Pro-tip: Changed to _id since you'll likely save the ID, not the name
+    type: 'select', 
+    label: 'Noliktava', 
+    // Map the raw data to Label/Value pairs
+    options: warehouses.value.map(w => ({
+      label: w.name,      // What the user sees in the dropdown
+      key: w.id         // What gets sent to the database
+    })),
+    required: true 
+  },
+  { id: 'price_input', type: 'float', label: 'Cena (€)', min: 0, step: 0.01, required: true },
+  { id: 'sharing_mode_input', type: 'select', label: 'Dalšanās veids', options: [
+    {key: 'INTERNAL', label: 'Tikai iekšējs'},
+    {key: 'WAREHOUSE_LIMIT', label: 'MI sliekšņa pārpalikums'}, 
+    {key: 'MARKET_FIXED', label: 'Fiksēts skaitlis'}, 
+    {key: 'GLOBAL', label: 'Visas detaļas ārējas'}
+  ], required: true },
+  { id: 'sharing_value_input', type: 'float', label: 'Dalšanās skaits', min: 0, step: 0.00001 },
+  { id: 'description_input', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true },
+]);
+
+const formFields = ref([]);
 
 const handleSave = (newData) => {
   console.log("Saving to Database:", newData);
-  isAdding.value = false;
+  api.createPart(newData);
+  formOpen.value = false;
+};
+
+const closeForm = () => {
+  formOpen.value = false;
 };
 </script>
 
@@ -125,25 +179,25 @@ const handleSave = (newData) => {
       v-model="activeFilters" 
       :config="sidebarConfig" 
     />
-    <main v-if="!isAdding">
+    <main v-if="!formOpen">
       <NavBar />
       <div class="page-content">
         <DataTable 
           :columns="tableCols" 
           :data="inventory"
-          :rowActions="myRowActions"
+          :rowActions="rowActions"
           :globalActions="myGlobalActions"
           @action="handleAction"
-          @globalAction="(id) => { console.log(`Executing global ${id}`); if (id === 'add-part') { console.log(`add the stupiddd part`); isAdding = true; }}"
+          @globalAction="handleGlobalAction"
         />
       </div>
     </main>
     <main v-else class="flex justify-center pt-10">
       <DynamicForm 
         title="Jaunas detaļas reģistrācija"
-        :fields="inventoryFields"
+        :fields="formFields"
         @submit="handleSave"
-        @cancel="isAdding.value = false"
+        @cancel="closeForm"
       />
     </main>
   </div>

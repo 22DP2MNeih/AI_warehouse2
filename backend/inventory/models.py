@@ -10,10 +10,6 @@ from django.utils import timezone
 # ORGANIZĀCIJAS STRUKTŪRA
 # Uzņēmuma un noliktavu modeļi, kas definē sistēmas hierarhiju.
 class Company(models.Model):
-    STRATEGY_CHOICES = (
-        ('CUSTOMER_FRIENDLY', 'Customer Friendly (Max Availability)'),
-        ('COST_EFFICIENT', 'Cost Efficient (Minimum Stock)'),
-    )
 
     name = models.CharField(max_length=255)
     tax_number = models.CharField(max_length=50, blank=True, null=True)
