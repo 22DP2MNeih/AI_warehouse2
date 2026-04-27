@@ -41,24 +41,38 @@ const handleSubmit = () => {
       <div v-for="field in fields" :key="field.id" :class="field.fullWidth ? 'col-span-2' : ''">
         <slot :name="field.id" :field="field" :formData="formData" :errors="errors">
           <FormFieldWrapper :id="field.id" :label="field.label" :required="field.required" :error="errors[field.id]">
+            
+            <div v-if="field.type === 'label'" class="form-input-label">
+              {{ formData[field.id] || '---' }}
+            </div>
 
-            <input v-if="field.type === 'text'"
+            <input v-else-if="field.type === 'text'"
               type="text"
               v-model="formData[field.id]"
               class="form-input"
+              :class="{ 'input-disabled': field.disabled }"
               :placeholder="field.placeholder"
+              :disabled="field.disabled"
             />
 
             <input v-else-if="field.type === 'number' || field.type === 'float'"
               type="number"
               v-model.number="formData[field.id]"
               class="form-input"
+              :class="{ 'input-disabled': field.disabled }"
               :placeholder="field.placeholder"
               :min="field.min"
               :max="field.max"
               :step="field.type === 'float' ? (field.step || 'any') : (field.step || '1')"
+              :disabled="field.disabled"
             />
-            <select v-else-if="field.type === 'select'" v-model="formData[field.id]" class="form-input">
+
+            <select v-else-if="field.type === 'select'" 
+              v-model="formData[field.id]" 
+              class="form-input"
+              :class="{ 'input-disabled': field.disabled }"
+              :disabled="field.disabled"
+            >
               <option value="" disabled>{{ field.placeholder || 'Izvēlieties...' }}</option>
               <option v-for="opt in field.options" :key="opt.key" :value="opt.key">{{ opt.label }}</option>
             </select>
@@ -66,7 +80,10 @@ const handleSubmit = () => {
             <textarea v-else-if="field.type === 'textarea'"
               v-model="formData[field.id]"
               class="form-input min-h-[100px]"
+              :class="{ 'input-disabled': field.disabled }"
+              :disabled="field.disabled"
             ></textarea>
+            
           </FormFieldWrapper>
         </slot>
       </div>
@@ -141,4 +158,19 @@ const handleSubmit = () => {
   cursor: pointer;
 }
 .btn-primary-action:hover { background: #2563eb; color: white; }
+
+.input-disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;           
+  cursor: not-allowed;       
+  border-color: #e2e8f0;
+}
+
+.form-input-label {
+  padding: 10px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+  border-bottom: 1px dashed #e2e8f0;
+}
 </style>

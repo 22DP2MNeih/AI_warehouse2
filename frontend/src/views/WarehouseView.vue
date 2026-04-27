@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/auth';
 
 
 const authStore = useAuthStore();
+console.log(authStore);
 
 const canAddPart = computed(() => {
     return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
@@ -105,14 +106,25 @@ const myGlobalActions = [
   { id: 'import', label: 'Importēt CSV' }
 ];
 
+const action_type = ref("");
+const last_part = ref({});
 const handleAction = ({ action, item }) => {
   if (!item) {
     console.log(`No item`);
     return;
   }
+  last_part.value = item;
+  console.log(item);
   console.log(`Executing ${action} for`, item.product_name);
   if (action === 'use_part') {
+    action_type.value = action;
+    formFields.value = consumeFields;
+    formData.value = {
+      part_name: item.product_name,
+      vin_input: item.vin
+    }
     // Logic for deleting
+    formOpen.value = true; 
   }
 };
 
@@ -121,7 +133,7 @@ const handleGlobalAction = (id) => { // Usually passed as a single ID/string fro
   
   if (id === 'add-part') {
     console.log("add the stupiddd part");
-    
+    action_type.value = id;
     // Use .value to update the ref
     // Access inventoryFields (computed) directly or via .value
     formFields.value = inventoryFields.value; 
@@ -132,7 +144,13 @@ const handleGlobalAction = (id) => { // Usually passed as a single ID/string fro
 };
 
 const formOpen = ref(false);
-
+const formData = ref({});
+const consumeFields = [
+  { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
+  { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
+  { id: 'used_on', type: 'text', label: 'Detaļa izmantota auto', required: true },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.01, required: true },
+];
 const inventoryFields = computed(() => [
   { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
   { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true },
@@ -163,9 +181,36 @@ const inventoryFields = computed(() => [
 const formFields = ref([]);
 
 const handleSave = (newData) => {
-  console.log("Saving to Database:", newData);
-  api.createPart(newData);
-  formOpen.value = false;
+  if (action_type.value === "add-part") {
+    console.log("Saving to Database:", newData);
+    api.createPart(newData);
+    formOpen.value = false;
+  } else if (action_type.value === "use_part") {
+    const apiData = {
+      order_type: "CONSUME",
+      vin: newData.vin_input,
+      product_listing: last_part.value.company_product,
+      quantity: newData.quantity,
+      destination_external: newData.used_on,
+      from_warehouse: ""
+    }
+    // Lookup the warehouse ID by name
+    const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
+    if (warehouse) {
+      apiData.from_warehouse = warehouse.id;
+    } else {
+      console.log("Warehouse not found for:");
+      console.error("Warehouse not found for:", last_part.value);
+    }
+    console.log("Saving to Database:", last_part.value, newData, apiData);
+    createAndCompleteOrder(apiData);
+    formOpen.value = false;
+  }
+};
+
+const createAndCompleteOrder = async (apiData) => {
+  const response = await api.createOrder(apiData);
+  api.completeOrder(response.data.id);
 };
 
 const closeForm = () => {
@@ -196,6 +241,7 @@ const closeForm = () => {
       <DynamicForm 
         title="Jaunas detaļas reģistrācija"
         :fields="formFields"
+        :initialData="formData"
         @submit="handleSave"
         @cancel="closeForm"
       />
