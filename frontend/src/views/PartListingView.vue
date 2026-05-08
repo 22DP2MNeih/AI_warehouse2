@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import api from '../services/api';
 import NavBar from '../components/NavBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DataTable from '../components/DataTable.vue';
@@ -15,25 +16,24 @@ const sidebarConfig = ref([
   { id: 'name', type: 'text', label: 'Nosaukums' },
   { id: 'vin', type: 'text', label: 'VIN' },
   { id: 'sku', type: 'text', label: 'SKU' },
-  { id: 'warehouse', type: 'text', label: 'Noliktava' },
   { id: 'company', type: 'text', label: 'Uzņēmums' },
   { id: 'onlyCurrentCompany', type: 'checkbox', label: 'Tikai šis uzņēmums' }
 ]);
 
 // 3. DataTable Configuration
 const tableColumns = ref([
-  { id: 'name', label: 'Nosaukums', sortable: true },
-  { id: 'vin', label: 'VIN', sortable: true },
+  { id: 'product_name', label: 'Nosaukums', sortable: true },
+  { id: 'product_vin', label: 'VIN', sortable: true },
   { id: 'sku', label: 'SKU', sortable: true },
-  { id: 'stockStatus', label: 'Noliktavā / AI Floor', sortable: false },
-  { id: 'location', label: 'Atrašanās vieta', sortable: true },
+  { id: 'stockStatus', label: 'Dalīšanās / Krājums', sortable: false },
+  { id: 'company_name', label: 'Uzņēmums', sortable: true },
   { id: 'price', label: 'Cena', sortable: true }
 ]);
 
 // Row Actions (Excluding "Izmantot" as per request)
 const rowActions = ref([
   { id: 'order', label: 'Pasūtīt', class: 'btn-primary' },
-  { id: 'move', label: 'Pārvietot', class: 'btn-secondary' }
+  // { id: 'move', label: 'Pārvietot', class: 'btn-secondary' }
 ]);
 
 // 4. Reactive State & Data
@@ -41,70 +41,104 @@ const filters = ref({
   name: '',
   vin: '',
   sku: '',
-  warehouse: '',
   company: '',
   onlyCurrentCompany: false
 });
 
-const inventory = ref([
-  {
-    id: 1,
-    name: 'Bremžu diski (Priekšējie)',
-    vin: 'WBA312000L123456',
-    sku: 'BD-2210-XL',
-    currentStock: 2,
-    recommendedStock: 5,
-    company: 'Auto Stars SIA',
-    warehouse: 'A-Sekcija',
-    price: 120.50,
-    location: 'A-Sekcija / Auto Stars SIA'
-  },
-  {
-    id: 2,
-    name: 'Eļļas filtrs',
-    vin: 'ANY-VIN-7788',
-    sku: 'EF-551',
-    currentStock: 12,
-    recommendedStock: 10,
-    company: 'Auto Stars SIA',
-    warehouse: 'B-Sekcija',
-    price: 12.00,
-    location: 'B-Sekcija / Auto Stars SIA'
-  },
-  {
-    id: 3,
-    name: 'Amortizators (Aizmugurējais)',
-    vin: 'VAG9900112233',
-    sku: 'AM-99-R',
-    currentStock: 0,
-    recommendedStock: 4,
-    company: 'Auto Stars SIA',
-    warehouse: 'A-Sekcija',
-    price: 89.99,
-    location: 'A-Sekcija / Auto Stars SIA'
-  }
-]);
+onMounted(async () => {
+    try {
+        const inventoryRes = await api.getMarket();
+        
+        // inventory.value = inventoryRes.data;
+        inventory.value = inventoryRes.data.map(part => ({
+            ...part,
+            price: Number(part.price) // or parseFloat(part.price)
+        }));
+        console.log(inventory);
+        // warehouses.value = warehouseRes.data; // Fill the ref
+    } catch (err) {
+        // 4. Use translation in JS logic
+        // error.value = t.value('inventory.errorLoad');
+        console.error(err);
+    } finally {
+        // loading.value = false;
+    }
+});
 
-// 5. Logic: Process Data (Filtering)
+// const inventory = ref([
+//   {
+//     id: 1,
+//     name: 'Bremžu diski (Priekšējie)',
+//     vin: 'WBA312000L123456',
+//     sku: 'BD-2210-XL',
+//     currentStock: 2,
+//     recommendedStock: 5,
+//     company: 'Auto Stars SIA',
+//     warehouse: 'A-Sekcija',
+//     price: 120.50,
+//     location: 'A-Sekcija / Auto Stars SIA'
+//   },
+//   {
+//     id: 2,
+//     name: 'Eļļas filtrs',
+//     vin: 'ANY-VIN-7788',
+//     sku: 'EF-551',
+//     currentStock: 12,
+//     recommendedStock: 10,
+//     company: 'Auto Stars SIA',
+//     warehouse: 'B-Sekcija',
+//     price: 12.00,
+//     location: 'B-Sekcija / Auto Stars SIA'
+//   },
+//   {
+//     id: 3,
+//     name: 'Amortizators (Aizmugurējais)',
+//     vin: 'VAG9900112233',
+//     sku: 'AM-99-R',
+//     currentStock: 0,
+//     recommendedStock: 4,
+//     company: 'Auto Stars SIA',
+//     warehouse: 'A-Sekcija',
+//     price: 89.99,
+//     location: 'A-Sekcija / Auto Stars SIA'
+//   }
+// ]);
+
+const inventory = ref([]);
 const processedData = computed(() => {
-  return inventory.value.map(item => {
-    // Dynamically calculate status for display
-    return {
-      ...item,
-      stockStatus: `${item.currentStock} / ${item.recommendedStock}`,
-      isLowStock: item.currentStock < item.recommendedStock
-    };
-  }).filter(item => {
+  return inventory.value.filter(item => {
     const f = filters.value;
-    const matchName = item.name.toLowerCase().includes(f.name.toLowerCase());
-    const matchVin = item.vin.toLowerCase().includes(f.vin.toLowerCase());
-    const matchSku = item.sku.toLowerCase().includes(f.sku.toLowerCase());
-    const matchWarehouse = item.warehouse.toLowerCase().includes(f.warehouse.toLowerCase());
-    const matchCompany = item.company.toLowerCase().includes(f.company.toLowerCase());
     
-    return matchName && matchVin && matchSku && matchWarehouse && matchCompany;
+    // Updated filtering logic to use new API keys
+    const matchName = item.product_name?.toLowerCase().includes(f.name.toLowerCase());
+    const matchVin = item.product_vin?.toLowerCase().includes(f.vin.toLowerCase());
+    const matchSku = item.sku?.toLowerCase().includes(f.sku.toLowerCase());
+    const matchCompany = item.company_name?.toLowerCase().includes(f.company.toLowerCase());
+    
+    return matchName && matchVin && matchSku && matchCompany;
   });
 });
+// 5. Logic: Process Data (Filtering)
+// const processedData = computed(() => {
+//   return inventory.value.map(item => {
+//     // Dynamically calculate status for display
+//     return {
+//       ...item,
+//       stockStatus: `${item.currentStock} / ${item.recommendedStock}`,
+//       isLowStock: item.currentStock < item.recommendedStock
+//     };
+//   }).filter(item => {
+//     const f = filters.value;
+//     const matchName = item.product_name.toLowerCase().includes(f.name.toLowerCase());
+//     const matchVin = item.product_vin.toLowerCase().includes(f.vin.toLowerCase());
+//     // const matchSku = item.sku.toLowerCase().includes(f.sku.toLowerCase());
+//     // const matchWarehouse = item.warehouse.toLowerCase().includes(f.warehouse.toLowerCase());
+//     // const matchCompany = item.company.toLowerCase().includes(f.company.toLowerCase());
+//     const matchCategory = item.company_name.toLowerCase().includes(f.company.toLowerCase());
+    
+//     return matchName && matchVin && matchCategory;
+//   });
+// });
 
 // Event Handlers
 const handleAction = ({ actionId, row }) => {
