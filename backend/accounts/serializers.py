@@ -56,6 +56,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class UserSerializer(serializers.ModelSerializer):
+    # Using 'StringRelatedField' shows the name (from __str__) 
+    # instead of just the ID number.
+    company_name = serializers.StringRelatedField(source='company', read_only=True)
+    warehouse_name = serializers.StringRelatedField(source='warehouse', read_only=True)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'role')
+        fields = ('id', 'username', 'email', 'role', 'company', 'warehouse', 'company_name', 'warehouse_name')

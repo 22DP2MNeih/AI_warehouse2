@@ -88,10 +88,10 @@ const tableCols = [
 //   { id: 'delete', label: 'Dzēst', class: 'btn-danger' }
 // ];
 const rowActionsWHMngr = [
-  { id: 'order', label: 'Izveidot pasūtījumu' },
+  { id: 'transfer_part', label: 'Parvietot' },
 ];
 const rowActionsMech = [
-  { id: 'order', label: 'Izveidot pasūtījumu' },
+  { id: 'transfer_part', label: 'Izveidot pasūtījumu' },
   { id: 'use_part', label: 'Izmantot detaļu' },
 ];
 
@@ -108,37 +108,32 @@ const myGlobalActions = [
 
 const action_type = ref("");
 const last_part = ref({});
-const handleAction = ({ action, item }) => {
-  if (!item) {
-    console.log(`No item`);
-    return;
-  }
-  last_part.value = item;
-  console.log(item);
-  console.log(`Executing ${action} for`, item.product_name);
-  if (action === 'use_part') {
-    action_type.value = action;
-    formFields.value = consumeFields;
-    formData.value = {
-      part_name: item.product_name,
-      vin_input: item.vin
-    }
-    // Logic for deleting
-    formOpen.value = true; 
-  }
-};
+// const handleAction = ({ action, item }) => {
+//   if (!item) {
+//     console.log(`No item`);
+//     return;
+//   }
+//   last_part.value = item;
+//   console.log(item);
+//   console.log(`Executing ${action} for`, item.product_name);
+//   if (action === 'use_part') {
+//     action_type.value = action;
+//     formFields.value = consumeFields;
+//     formData.value = {
+//       part_name: item.product_name,
+//       vin_input: item.vin
+//     }
+//     // Logic for deleting
+//     formOpen.value = true; 
+//   } else if (action === '') {
+//   }
+// };
 
-const handleGlobalAction = (id) => { // Usually passed as a single ID/string from the component
-  console.log(`Executing global ${id}`);
-  
+const handleGlobalAction = (id) => {
   if (id === 'add-part') {
-    console.log("add the stupiddd part");
+    formTitle.value = "Pievienot Detaļu";
     action_type.value = id;
-    // Use .value to update the ref
-    // Access inventoryFields (computed) directly or via .value
-    formFields.value = inventoryFields.value; 
-    
-    // formOpen is a ref, so use .value
+    formFields.value = inventoryFields.value;
     formOpen.value = true; 
   }
 };
@@ -149,8 +144,25 @@ const consumeFields = [
   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
   { id: 'used_on', type: 'text', label: 'Detaļa izmantota auto', required: true },
-  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.01, required: true },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
 ];
+// const transferFields = [
+//   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
+//   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
+//   { id: 'from_warehouse', type: 'text', label: 'Noliktava no', disabled: true },
+//   { 
+//     id: 'to_warehouse', // Pro-tip: Changed to _id since you'll likely save the ID, not the name
+//     type: 'select', 
+//     label: 'Noliktava uz', 
+//     // Map the raw data to Label/Value pairs
+//     options: warehouses.value.map(w => ({
+//       label: w.name,      // What the user sees in the dropdown
+//       key: w.id         // What gets sent to the database
+//     })),
+//     required: true 
+//   },
+//   { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
+// ];
 const inventoryFields = computed(() => [
   { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
   { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true },
@@ -177,34 +189,123 @@ const inventoryFields = computed(() => [
   { id: 'sharing_value_input', type: 'float', label: 'Dalšanās skaits', min: 0, step: 0.00001 },
   { id: 'description_input', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true },
 ]);
+const transferFields = computed(() => [
+  { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
+  { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
+  { id: 'from_warehouse', type: 'text', label: 'Noliktava no', disabled: true },
+  { 
+    id: 'to_warehouse', 
+    type: 'select', 
+    label: 'Noliktava uz (Pēc noklusējuma: Mana noliktava)', 
+    options: warehouses.value.map(w => ({
+      label: w.name,
+      key: w.id
+    })),
+    required: false // Optional: Django will auto-assign if left blank
+  },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
+]);
 
 const formFields = ref([]);
 
-const handleSave = (newData) => {
-  if (action_type.value === "add-part") {
-    console.log("Saving to Database:", newData);
-    api.createPart(newData);
-    formOpen.value = false;
-  } else if (action_type.value === "use_part") {
-    const apiData = {
-      order_type: "CONSUME",
-      vin: newData.vin_input,
-      product_listing: last_part.value.company_product,
-      quantity: newData.quantity,
-      destination_external: newData.used_on,
-      from_warehouse: ""
+// const handleSave = (newData) => {
+//   if (action_type.value === "add-part") {
+//     console.log("Saving to Database:", newData);
+//     api.createPart(newData);
+//     formOpen.value = false;
+//   } else if (action_type.value === "use_part") {
+//     const apiData = {
+//       order_type: "CONSUME",
+//       vin: newData.vin_input,
+//       product_listing: last_part.value.company_product,
+//       quantity: newData.quantity,
+//       destination_external: newData.used_on,
+//       from_warehouse: ""
+//     }
+//     // Lookup the warehouse ID by name
+//     const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
+//     if (warehouse) {
+//       apiData.from_warehouse = warehouse.id;
+//     } else {
+//       console.log("Warehouse not found for:");
+//       console.error("Warehouse not found for:", last_part.value);
+//     }
+//     console.log("Saving to Database:", last_part.value, newData, apiData);
+//     createAndCompleteOrder(apiData);
+//     formOpen.value = false;
+//   } else if (action_type.value === "use_part") {
+
+//   }
+// };
+const formTitle = ref("");
+const handleAction = ({ action, item }) => {
+  if (!item) return;
+  
+  last_part.value = item;
+  action_type.value = action;
+  
+  if (action === 'use_part') {
+    formTitle.value = "Izmantot Detaļu"
+    formFields.value = consumeFields;
+    formData.value = {
+      part_name: item.product_name,
+      vin_input: item.vin,
+      quantity: 1
+    };
+    formOpen.value = true;
+  } else if (action === 'transfer_part') {
+    formTitle.value = "Pārvietot Detaļu"
+    formFields.value = transferFields.value; // Use the computed value
+    formData.value = {
+      part_name: item.product_name,
+      vin_input: item.vin,
+      from_warehouse: item.warehouse_name, // Displayed in disabled text field
+      quantity: 1
+    };
+    formOpen.value = true;
+  }
+};
+
+const handleSave = async (newData) => {
+  try {
+    if (action_type.value === "add-part") {
+      await api.createPart(newData);
+    } 
+    
+    else if (action_type.value === "use_part") {
+      const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
+      const apiData = {
+        order_type: "CONSUME",
+        product_listing: last_part.value.company_product,
+        quantity: newData.quantity,
+        destination_external: newData.used_on,
+        from_warehouse: warehouse?.id
+      };
+      await createAndCompleteOrder(apiData);
+    } 
+    
+    else if (action_type.value === "transfer_part") {
+      const sourceWarehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
+      const apiData = {
+        order_type: "TRANSFER",
+        product_listing: last_part.value.company_product,
+        quantity: newData.quantity,
+        from_warehouse: sourceWarehouse?.id,
+        // If to_warehouse is null, Django perform_create sets it to user.warehouse
+        to_warehouse: newData.to_warehouse || null 
+      };
+      
+      await api.createOrder(apiData);
     }
-    // Lookup the warehouse ID by name
-    const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
-    if (warehouse) {
-      apiData.from_warehouse = warehouse.id;
-    } else {
-      console.log("Warehouse not found for:");
-      console.error("Warehouse not found for:", last_part.value);
-    }
-    console.log("Saving to Database:", last_part.value, newData, apiData);
-    createAndCompleteOrder(apiData);
+
+    // Common cleanup after any successful action
     formOpen.value = false;
+    const inventoryRes = await api.getInventory();
+    inventory.value = inventoryRes.data;
+
+  } catch (err) {
+    console.error(`Error executing ${action_type.value}:`, err);
+    // You could add a toast notification here
   }
 };
 
@@ -239,7 +340,7 @@ const closeForm = () => {
     </main>
     <main v-else class="flex justify-center pt-10">
       <DynamicForm 
-        title="Jaunas detaļas reģistrācija"
+        :title="formTitle"
         :fields="formFields"
         :initialData="formData"
         @submit="handleSave"

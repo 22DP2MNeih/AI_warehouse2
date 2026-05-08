@@ -202,18 +202,25 @@ class OrderSerializer(serializers.ModelSerializer):
     def validate(self, data):
         dest_ext = data.get('destination_external')
         f_wh = data.get('from_warehouse')
-        t_wh = data.get('to_warehouse')
-
+        
+        # Logic for External Orders (unchanged)
         if dest_ext:
+            t_wh = data.get('to_warehouse')
             if not (bool(f_wh) ^ bool(t_wh)):
                 raise serializers.ValidationError({
                     "non_field_errors": "External orders require exactly one internal warehouse reference."
                 })
+                
+        # Logic for Internal Orders (updated)
         else:
-            if not (f_wh and t_wh):
+            # We only strictly require the source warehouse.
+            # The destination (to_warehouse) will be filled by the ViewSet 
+            # if it's missing from the request.
+            if not f_wh:
                 raise serializers.ValidationError({
-                    "non_field_errors": "Internal orders require both source and destination warehouses."
+                    "non_field_errors": "Internal orders require a source warehouse."
                 })
+                
         return data
 
     def get_part_name(self, obj):

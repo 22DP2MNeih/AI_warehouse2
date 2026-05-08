@@ -60,24 +60,6 @@ const switchLogin = () => {
 const formData = computed(() => { return isLogin.value ? loginFields : registerFields;});
 const errors = ref({});
 
-const handleSubmit = () => {
-  if (isLogin.value === true) {
-    console.log("Loging in ");
-  } else {
-    console.log("Registring ");
-  }
-  let valid = true;
-
-  // Pārbauda vai lauki, kuri ir obligāti ir izpildīti
-  props.fields.forEach(f => {
-    if (f.required && !formData.value[f.id]) {
-      errors.value[f.id] = 'Šis lauks ir obligāts';
-      valid = false;
-    }
-  });
-
-  if (valid) emit('submit', formData.value);
-};
 const error = ref(null);
 const handleRegister = async () => {
   if (isLogin.value === true) {

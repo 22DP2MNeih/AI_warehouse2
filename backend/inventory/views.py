@@ -275,6 +275,16 @@ class OrderViewSet(viewsets.ModelViewSet):
             serializer.save(ordered_by=user, to_warehouse=user.warehouse)
         else:
             serializer.save(ordered_by=user)
+        
+        order_type = serializer.validated_data.get('order_type')
+        to_warehouse = serializer.validated_data.get('to_warehouse')
+        
+        # If it is a standard internal order AND no destination is provided
+        if order_type != 'CONSUME' and not to_warehouse:
+            serializer.save(ordered_by=self.request.user, to_warehouse=self.request.user.warehouse)
+        else:
+            # If order_type is CONSUME or if a destination was manually provided
+            serializer.save(ordered_by=self.request.user)
     
     def get_queryset(self):
         user = self.request.user

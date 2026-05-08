@@ -56,9 +56,18 @@ export const useAuthStore = defineStore('auth', {
                 try {
                     const decoded = jwtDecode(this.accessToken);
                     this.user = {
+                        id: decoded.user_id,
                         username: decoded.username,
                         role: decoded.role,
-                        id: decoded.user_id,
+                        // Add these new lines:
+                        company: {
+                            id: decoded.company_id,
+                            name: decoded.company_name
+                        },
+                        warehouse: {
+                            id: decoded.warehouse_id,
+                            name: decoded.warehouse_name
+                        }
                     };
                 } catch (e) {
                     console.error("Invalid token:", e);
