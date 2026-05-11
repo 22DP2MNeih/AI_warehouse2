@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import api from '../services/api';
 import SideBar from '../components/SideBar.vue';
 import NavBar from '../components/NavBar.vue';
@@ -57,10 +58,6 @@ const handleUpdate = async () => {
 const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
   { id: 'location', type: 'text', label: 'Atrašanās vieta' },
-  // { id: 'postal_code', type: 'text', label: 'Pasta indekss' },
-  // { id: 'service_level', type: 'slider', label: 'Servisa Līmenis', modelValue: 97.8, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  // { id: 'weight', type: 'slider', label: 'Svērums', modelValue: 93.6, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  // { id: 'procurement_priorities', type: 'slider', label: 'Iegādes prioritātes', modelValue: 95.9, min: 90, max: 99.5, step: 0.1, unit: '%' },
 ];
 
 const tableCols = [
@@ -74,19 +71,6 @@ const tableCols = [
   { id: 'price', label: 'Cena'}
 ];
 
-// let inventory = [
-//   { name: "Bremžu kluči", vin: "VF312345678", sku: "BK-9901", warehouse: "Rīga-A", available: 12, locCode: "A-12-3", desc: "Priekšējie keramiskie", price: 45.50 },
-//   { name: "Eļļas filtrs", vin: "WBA998877", sku: "EF-002", warehouse: "Rīga-A", available: 45, locCode: "B-01-1", desc: "Sintētiskajai eļļai", price: 8.20 },
-//   { name: "Zobsiksna", vin: "TMB112233", sku: "ZS-554", warehouse: "Ogre-1", available: 3, locCode: "C-05-9", desc: "Pastiprinātā", price: 120.00 },
-//   { name: "Aizdedzes svece", vin: "UU1223344", sku: "AS-12", warehouse: "Rīga-A", available: 24, locCode: "A-02-1", desc: "Iridija", price: 15.00 },
-//   { name: "Gaisa filtrs", vin: "VF312345678", sku: "GF-77", warehouse: "Valmiera", available: 8, locCode: "V-09-2", desc: "Standarta", price: 12.50 },
-//   { name: "Amortizators", vin: "WBA998877", sku: "AM-100", warehouse: "Rīga-B", available: 4, locCode: "X-01-4", desc: "Gāzes, aizmugurējais", price: 85.00 }
-// ];
-
-// const myRowActions = [
-//   { id: 'use_part', label: 'Izmantot detaļu' },
-//   { id: 'delete', label: 'Dzēst', class: 'btn-danger' }
-// ];
 const rowActionsWHMngr = [
   { id: 'transfer_part', label: 'Parvietot' },
 ];
@@ -108,26 +92,6 @@ const myGlobalActions = [
 
 const action_type = ref("");
 const last_part = ref({});
-// const handleAction = ({ action, item }) => {
-//   if (!item) {
-//     console.log(`No item`);
-//     return;
-//   }
-//   last_part.value = item;
-//   console.log(item);
-//   console.log(`Executing ${action} for`, item.product_name);
-//   if (action === 'use_part') {
-//     action_type.value = action;
-//     formFields.value = consumeFields;
-//     formData.value = {
-//       part_name: item.product_name,
-//       vin_input: item.vin
-//     }
-//     // Logic for deleting
-//     formOpen.value = true; 
-//   } else if (action === '') {
-//   }
-// };
 
 const handleGlobalAction = (id) => {
   if (id === 'add-part') {
@@ -146,23 +110,7 @@ const consumeFields = [
   { id: 'used_on', type: 'text', label: 'Detaļa izmantota auto', required: true },
   { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
 ];
-// const transferFields = [
-//   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
-//   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
-//   { id: 'from_warehouse', type: 'text', label: 'Noliktava no', disabled: true },
-//   { 
-//     id: 'to_warehouse', // Pro-tip: Changed to _id since you'll likely save the ID, not the name
-//     type: 'select', 
-//     label: 'Noliktava uz', 
-//     // Map the raw data to Label/Value pairs
-//     options: warehouses.value.map(w => ({
-//       label: w.name,      // What the user sees in the dropdown
-//       key: w.id         // What gets sent to the database
-//     })),
-//     required: true 
-//   },
-//   { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
-// ];
+
 const inventoryFields = computed(() => [
   { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
   { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true },
@@ -208,35 +156,6 @@ const transferFields = computed(() => [
 
 const formFields = ref([]);
 
-// const handleSave = (newData) => {
-//   if (action_type.value === "add-part") {
-//     console.log("Saving to Database:", newData);
-//     api.createPart(newData);
-//     formOpen.value = false;
-//   } else if (action_type.value === "use_part") {
-//     const apiData = {
-//       order_type: "CONSUME",
-//       vin: newData.vin_input,
-//       product_listing: last_part.value.company_product,
-//       quantity: newData.quantity,
-//       destination_external: newData.used_on,
-//       from_warehouse: ""
-//     }
-//     // Lookup the warehouse ID by name
-//     const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
-//     if (warehouse) {
-//       apiData.from_warehouse = warehouse.id;
-//     } else {
-//       console.log("Warehouse not found for:");
-//       console.error("Warehouse not found for:", last_part.value);
-//     }
-//     console.log("Saving to Database:", last_part.value, newData, apiData);
-//     createAndCompleteOrder(apiData);
-//     formOpen.value = false;
-//   } else if (action_type.value === "use_part") {
-
-//   }
-// };
 const formTitle = ref("");
 const handleAction = ({ action, item }) => {
   if (!item) return;
@@ -317,6 +236,21 @@ const createAndCompleteOrder = async (apiData) => {
 const closeForm = () => {
   formOpen.value = false;
 };
+const { user, userRole } = storeToRefs(authStore);
+const userMeta = computed(() => {
+  return {
+    // Access the .value because these are now refs
+    username: user.value?.username || 'Guest',
+    role: userRole.value
+  };
+});
+console.log(rowActions);
+console.log(authStore.userRole);
+const wtf = computed(() => {
+    console.log('wtf', authStore.userObyect, 'end');
+    return authStore.userRole === 'MECHANIC';
+});
+console.log(wtf.value);
 </script>
 
 <template>
@@ -326,7 +260,7 @@ const closeForm = () => {
       :config="sidebarConfig" 
     />
     <main v-if="!formOpen">
-      <NavBar />
+      <NavBar activeTab="warehouse"/>
       <div class="page-content">
         <DataTable 
           :columns="tableCols" 

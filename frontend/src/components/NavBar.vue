@@ -1,5 +1,9 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+const props = defineProps({
+  userMeta: { type: Object, required: true },
+});
+console.log(props.userMeta);
 
 const themeLabel = ref(null);
 const isDarkMode = ref(false);
@@ -142,7 +146,8 @@ const tabs = [
 
     <div class="header-tools">
       <div class="user-meta">
-        <strong>Jānis Bērziņš</strong>
+        <strong>{{ props.userMeta.username }}</strong>
+        <strong>{{ props.userMeta.role }}</strong>
         <span class="logout">Iziet</span>
       </div>
       

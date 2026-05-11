@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+
 const windows = computed(() => [
     "part view",
     "Settings",
