@@ -245,12 +245,6 @@ const userMeta = computed(() => {
   };
 });
 console.log(rowActions);
-console.log(authStore.userRole);
-const wtf = computed(() => {
-    console.log('wtf', authStore.userObyect, 'end');
-    return authStore.userRole === 'MECHANIC';
-});
-console.log(wtf.value);
 </script>
 
 <template>
@@ -260,7 +254,7 @@ console.log(wtf.value);
       :config="sidebarConfig" 
     />
     <main v-if="!formOpen">
-      <NavBar activeTab="warehouse"/>
+      <NavBar :userMeta="userMeta" activeTab="warehouse"/>
       <div class="page-content">
         <DataTable 
           :columns="tableCols" 

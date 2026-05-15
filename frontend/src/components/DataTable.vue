@@ -40,11 +40,11 @@ const processedData = computed(() => {
   result = result.filter(item => {
     return Object.keys(props.filters).every(key => {
       const filterVal = props.filters[key];
-
       if (!filterVal) return true;
-      if (!(key in item)) return true; 
-
-      return String(item[key]).toLowerCase().includes(String(filterVal).toLowerCase());
+      
+      // Ensure the item has the key and it's not null/undefined before stringifying
+      const itemValue = item[key] != null ? String(item[key]) : '';
+      return itemValue.toLowerCase().includes(String(filterVal).toLowerCase());
     });
   });
 
@@ -118,7 +118,12 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
             <div v-if="colIdx === 0" class="accent-marker"></div>
             
             <slot :name="`col-${col.id}`" :value="item[col.id]" :item="item">
-              {{ col.id === 'price' ? `${item[col.id].toFixed(2)} €` : item[col.id] }}
+              <template v-if="item[col.id] !== undefined && item[col.id] !== null">
+                {{ col.id === 'price' ? `${Number(item[col.id]).toFixed(2)} €` : item[col.id] }}
+              </template>
+              <template v-else>
+                -
+              </template>
             </slot>
           </td>
 

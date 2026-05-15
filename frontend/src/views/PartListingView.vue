@@ -1,132 +1,182 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import api from '../services/api';
 import NavBar from '../components/NavBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DataTable from '../components/DataTable.vue';
+import DynamicForm from '../components/DynamicForm.vue'; // 1. Import DynamicForm
+import { useAuthStore } from '../stores/auth';
 
-// 1. Meta Data & Auth State
-const userMeta = ref({
-  name: 'Jānis Bērziņš',
-  role: 'Noliktavas Vadītājs'
+
+// --- State Management ---
+const authStore = useAuthStore();
+const inventory = ref([]);
+const formOpen = ref(false);
+const formTitle = ref("");
+const formFields = ref([]);
+const formData = ref({});
+const actionType = ref("");
+const selectedItem = ref(null);
+const { user, userRole } = storeToRefs(authStore);
+const userMeta = computed(() => {
+  return {
+    // Access the .value because these are now refs
+    username: user.value?.username || 'Guest',
+    role: userRole.value
+  };
 });
 
-// 2. Sidebar Configuration (Contextual Controller)
+// --- Form Blueprints ---
+const orderFields = [
+  { id: 'product_name', type: 'text', label: 'Detaļa', disabled: true },
+  { id: 'sku', type: 'text', label: 'SKU', disabled: true },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 1, required: true },
+  { id: 'notes', type: 'textarea', label: 'Piezīmes', fullWidth: true },
+];
+
+const addPartFields = [
+  { id: 'product_name', type: 'text', label: 'Nosaukums', required: true },
+  { id: 'product_vin', type: 'text', label: 'VIN', required: true },
+  { id: 'sku', type: 'text', label: 'SKU', required: true },
+  { id: 'price', type: 'float', label: 'Cena', required: true },
+  { id: 'description', type: 'textarea', label: 'Apraksts', fullWidth: true },
+];
+
+// --- Existing Configurations ---
 const sidebarConfig = ref([
   { id: 'name', type: 'text', label: 'Nosaukums' },
   { id: 'vin', type: 'text', label: 'VIN' },
   { id: 'sku', type: 'text', label: 'SKU' },
   { id: 'company', type: 'text', label: 'Uzņēmums' },
-  // { id: 'onlyCurrentCompany', type: 'checkbox', label: 'Tikai šis uzņēmums' }
 ]);
 
-// 3. DataTable Configuration
 const tableColumns = ref([
   { id: 'product_name', label: 'Nosaukums', sortable: true },
   { id: 'product_vin', label: 'VIN', sortable: true },
   { id: 'sku', label: 'SKU', sortable: true },
-  { id: 'stockStatus', label: 'Dalīšanās / Krājums', sortable: false },
   { id: 'company_name', label: 'Uzņēmums', sortable: true },
   { id: 'price', label: 'Cena', sortable: true }
 ]);
 
-// Row Actions (Excluding "Izmantot" as per request)
-const rowActions = ref([
-  { id: 'order', label: 'Pasūtīt', class: 'btn-primary' },
-]);
+const rowActions = ref([{ id: 'order', label: 'Pasūtīt' }]);
+const filters = ref({ name: '', vin: '', sku: '', company: '' });
 
-// 4. Reactive State & Data
-const filters = ref({
-  name: '',
-  vin: '',
-  sku: '',
-  company: '',
-  // onlyCurrentCompany: false
-});
+// --- Logic ---
+const fetchMarketData = async () => {
+  try {
+    const res = await api.getMarket();
+    inventory.value = res.data.map(part => ({ ...part, price: Number(part.price) }));
+  } catch (err) {
+    console.error("Failed to load market data:", err);
+  }
+};
 
-onMounted(async () => {
-    try {
-        const inventoryRes = await api.getMarket();
-        
-        // inventory.value = inventoryRes.data;
-        inventory.value = inventoryRes.data.map(part => ({
-            ...part,
-            price: Number(part.price) // or parseFloat(part.price)
-        }));
-        console.log(inventory);
-        // warehouses.value = warehouseRes.data; // Fill the ref
-    } catch (err) {
-        // 4. Use translation in JS logic
-        // error.value = t.value('inventory.errorLoad');
-        console.error(err);
-    } finally {
-        // loading.value = false;
-    }
-});
+onMounted(fetchMarketData);
 
-const inventory = ref([]);
 const processedData = computed(() => {
   return inventory.value.filter(item => {
     const f = filters.value;
-    
-    // Updated filtering logic to use new API keys
-    const matchName = item.product_name?.toLowerCase().includes(f.name.toLowerCase());
-    const matchVin = item.product_vin?.toLowerCase().includes(f.vin.toLowerCase());
-    const matchSku = item.sku?.toLowerCase().includes(f.sku.toLowerCase());
-    const matchCompany = item.company_name?.toLowerCase().includes(f.company.toLowerCase());
-    
-    return matchName && matchVin && matchSku && matchCompany;
+    return item.product_name?.toLowerCase().includes(f.name.toLowerCase()) &&
+           item.product_vin?.toLowerCase().includes(f.vin.toLowerCase()) &&
+           item.sku?.toLowerCase().includes(f.sku.toLowerCase()) &&
+           item.company_name?.toLowerCase().includes(f.company.toLowerCase());
   });
 });
 
-// Event Handlers
-const handleAction = ({ actionId, row }) => {
-  console.log(`Action ${actionId} triggered for part: ${row.sku}`);
+// --- Event Handlers ---
+const openAddPartForm = () => {
+  actionType.value = "add_part";
+  formTitle.value = "Pievienot jaunu detaļu tirgum";
+  formFields.value = addPartFields;
+  formData.value = {};
+  formOpen.value = true;
+};
+
+const handleAction = ({ action, item }) => {
+  console.log("action called:", action, item); // console says "action called: undefined undefined"
+      
+  if (action === 'order') {
+    console.log(item);
+    selectedItem.value = item;
+    actionType.value = "order_part";
+    formTitle.value = `Pasūtīt detaļu: ${item.product_name}`;
+    formFields.value = orderFields;
+    formData.value = {
+      product_name: item.product_name,
+      sku: item.sku,
+      quantity: 1
+    };
+    formOpen.value = true;
+  }
+};
+
+const handleSave = async (newData) => {
+  try {
+    if (actionType.value === "order_part") {
+      // Logic for creating an order from the market
+      await api.createOrder({
+        product_listing: selectedItem.value.id,
+        quantity: newData.quantity,
+        order_type: "PURCHASE",
+        notes: newData.notes,
+        // from_warehouse: selectedItem.value.,
+      });
+    } // else if (actionType.value === "add_part") {
+    //   await api.createMarketListing(newData);
+    // }
+    
+    formOpen.value = false;
+    await fetchMarketData(); // Refresh list
+  } catch (err) {
+    console.error("Form submission error:", err);
+  }
+};
+
+const closeForm = () => {
+  formOpen.value = false;
 };
 </script>
 
 <template>
   <div class="app-layout">
-    <!-- Fixed Navigation -->
     <NavBar :userMeta="userMeta" activeTab="Inventory" />
 
     <div class="content-body">
-      <!-- Contextual Controller -->
-      <SideBar 
-        v-model="filters" 
-        :config="sidebarConfig" 
-      />
+      <SideBar v-model="filters" :config="sidebarConfig" />
 
-      <!-- Polymorphic Main Area -->
+      <!-- Toggle between Table and Form -->
       <main class="main-content">
-        <div class="view-header">
-          <div class="header-titles">
-            <h1 class="view-title">Detaļu Noliktava</h1>
-            <p class="view-subtitle">Pārvaldiet krājumus un pasūtījumus</p>
-          </div>
-          <div class="view-actions">
-            <button class="btn-add">+ Pievienot jaunu detaļu</button>
-          </div>
-        </div>
-
-        <DataTable 
-          :columns="tableColumns" 
-          :data="processedData" 
-          :rowActions="rowActions"
-          @action="handleAction"
-        >
-          <!-- Custom Slot for the 0/0 Stock display -->
-          <!-- <template #cell-stockStatus="{ row }">
-            <div class="stock-container">
-              <span :class="['stock-badge', row.isLowStock ? 'critical' : 'optimal']">
-                {{ row.stockStatus }}
-              </span>
-              <div v-if="row.isLowStock" class="ai-warning">
-                Zems krājums
-              </div>
+        <template v-if="!formOpen">
+          <div class="view-header">
+            <div class="header-titles">
+              <h1 class="view-title">Detaļu Noliktava</h1>
+              <p class="view-subtitle">Pārvaldiet krājumus un pasūtījumus</p>
             </div>
-          </template> -->
-        </DataTable>
+            <div class="view-actions">
+              <!-- Connect the Add Button -->
+              <button class="btn-add" @click="openAddPartForm">+ Pievienot jaunu detaļu</button>
+            </div>
+          </div>
+
+          <DataTable 
+            :columns="tableColumns" 
+            :data="processedData" 
+            :rowActions="rowActions"
+            @action="handleAction"
+          />
+        </template>
+
+        <!-- Dynamic Form Rendering -->
+        <div v-else class="form-container">
+          <DynamicForm 
+            :title="formTitle"
+            :fields="formFields"
+            :initialData="formData"
+            @submit="handleSave"
+            @cancel="closeForm"
+          />
+        </div>
       </main>
     </div>
   </div>

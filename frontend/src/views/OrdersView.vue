@@ -1,57 +1,75 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import NavBar from '../components/NavBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DataTable from '../components/DataTable.vue';
 import DynamicForm from '../components/DynamicForm.vue';
+import api from '../services/api';
+import { useAuthStore } from '../stores/auth';
+const authStore = useAuthStore();
 
 // --- 1. State Management ---
 const isCreatingOrder = ref(false);
+const orders = ref([]); // Start with empty array
 const filters = ref({
   search: '',
   internalOnly: false,
   status: ''
 });
 
-// Sample Data
-const orders = ref([
-  { id: 'ORD-7721', part: 'Eļļas filtrs', vin: 'WBA12345678', sku: 'EF-99', price: 12.40, status: 'Pending', from: 'Noliktava A', to: 'Serviss Centrs', date: '2025-11-28' },
-  { id: 'ORD-8802', part: 'Zobsiksna', vin: 'VF388221100', sku: 'ZS-01', price: 89.99, status: 'Completed', from: 'Galvenā Noliktava', to: 'Noliktava B', date: '2025-11-25' },
-]);
+// Fetch data on load
+const fetchOrders = async () => {
+  try {
+    const response = await api.getOrders();
+    orders.value = response.data;
+    console.log(orders);
+  } catch (error) {
+    console.error("Kļūda ielādējot pasūtījumus:", error);
+  }
+};
+
+onMounted(() => {
+  fetchOrders();
+});
 
 // --- 2. Configurations ---
 const tableColumns = [
   { id: 'id', label: 'Identifikators' },
-  { id: 'part', label: 'Detaļas nosaukums' },
+  { id: 'part_name', label: 'Detaļas nosaukums' },
   { id: 'vin', label: 'VIN' },
   { id: 'sku', label: 'SKU' },
   { id: 'price', label: 'Cena' },
   { id: 'status', label: 'Statuss' },
-  { id: 'from', label: 'No' },
-  { id: 'to', label: 'Uz' },
+  { id: 'from_warehouse_name', label: 'No' },
+  { id: 'to_warehouse_name', label: 'Uz' },
   { id: 'date', label: 'Datums' }
 ];
 
 const sidebarConfig = [
   { id: 'search', type: 'text', label: 'Meklēt pasūtījumu', placeholder: 'ID vai VIN...' },
   { id: 'internalOnly', type: 'checkbox', label: 'Iekšējs pasūtījums' },
-  { id: 'status', type: 'select', label: 'Filtrēt pēc statusa', options: ['Pending', 'Completed'] }
-];
-
-const orderFormFields = [
-  { id: 'part', type: 'text', label: 'Detaļas nosaukums', required: true },
-  { id: 'vin', type: 'text', label: 'Automašīnas VIN', required: true },
-  { id: 'from', type: 'select', label: 'Izsūtītāja Noliktava', options: ['Noliktava A', 'Galvenā Noliktava'], required: true },
-  { id: 'to', type: 'select', label: 'Saņēmēja Noliktava', options: ['Serviss Centrs', 'Noliktava B'], required: true },
-  { id: 'price', type: 'number', label: 'Vērtība (€)', required: true },
-  { id: 'notes', type: 'textarea', label: 'Piezīmes', fullWidth: true }
+  { id: 'status', type: 'select', label: 'Filtrēt pēc statusa', options: ['Pending', 'Approved', 'Rejected', 'Completed'] }
 ];
 
 // --- 3. Logic ---
-const handleRowAction = ({ action, item }) => {
-  if (action === 'complete') {
-    const target = orders.value.find(o => o.id === item.id);
-    if (target) target.status = 'Completed';
+const handleRowAction = async ({ action, item }) => {
+  try {
+    if (action === 'approve') {
+      await api.approveOrder(item.id);
+    } else if (action === 'reject') {
+      await api.rejectOrder(item.id);
+    } else if (action === 'complete') {
+      await api.completeOrder(item.id);
+    } else if (action === 'delete') {
+      if (confirm('Vai tiešām vēlaties dzēst šo pasūtījumu?')) {
+        await api.deleteOrder(item.id);
+      }
+    }
+    // Refresh data after any action
+    await fetchOrders();
+  } catch (error) {
+    console.error(`Darbība ${action} neizdevās:`, error);
   }
 };
 
@@ -60,21 +78,27 @@ const handleGlobalAction = (actionId) => {
   if (actionId === 'import') console.log("Importing CSV...");
 };
 
-const handleFormSubmit = (data) => {
-  const newOrder = {
-    id: `ORD-${Math.floor(Math.random() * 9000) + 1000}`,
-    status: 'Pending',
-    date: new Date().toISOString().split('T')[0],
-    ...data
-  };
-  orders.value.unshift(newOrder);
+const handleFormSubmit = async (data) => {
+  // Logic for creating order via API would go here
+  // For now, keeping your existing logic but wrapping in visibility toggle
+  console.log("Form data:", data);
   isCreatingOrder.value = false;
+  await fetchOrders();
 };
+
+const { user, userRole } = storeToRefs(authStore);
+const userMeta = computed(() => {
+  return {
+    // Access the .value because these are now refs
+    username: user.value?.username || 'Guest',
+    role: userRole.value
+  };
+});
 </script>
 
 <template>
   <div class="dashboard-layout">
-    <NavBar activeTab="Orders" />
+    <NavBar :userMeta="userMeta" activeTab="order" />
     
     <div class="main-container">
       <SideBar 
@@ -94,13 +118,16 @@ const handleFormSubmit = (data) => {
               { id: 'export', label: 'Eksportēt CSV' }
             ]"
             :rowActions="[
-              { id: 'complete', label: 'Pabeigt pasūtījumu' }
+              { id: 'approve', label: 'Apstiprināt' },
+              { id: 'reject', label: 'Noraidīt' },
+              { id: 'complete', label: 'Pabeigt' },
+              { id: 'delete', label: 'Dzēst' }
             ]"
             @action="handleRowAction"
             @globalAction="handleGlobalAction"
           >
             <template #col-status="{ value }">
-              <span :class="['status-pill', value.toLowerCase()]">
+              <span :class="['status-pill', value?.toLowerCase()]">
                 {{ value }}
               </span>
             </template>
@@ -114,7 +141,7 @@ const handleFormSubmit = (data) => {
               :fields="orderFormFields"
               submitLabel="Apstiprināt pasūtījumu"
               @submit="handleFormSubmit"
-              @cancel="isCreatingOrder.value = false"
+              @cancel="isCreatingOrder = false"
             />
           </div>
         </template>
@@ -149,7 +176,6 @@ const handleFormSubmit = (data) => {
   padding-top: 20px;
 }
 
-/* Status Specific Styling */
 .status-pill {
   padding: 4px 10px;
   border-radius: 20px;
@@ -158,13 +184,8 @@ const handleFormSubmit = (data) => {
   text-transform: uppercase;
 }
 
-.status-pill.pending {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.status-pill.completed {
-  background: #dcfce7;
-  color: #16a34a;
-}
+.status-pill.pending { background: #fef3c7; color: #d97706; }
+.status-pill.approved { background: #e0f2fe; color: #0369a1; }
+.status-pill.rejected { background: #fee2e2; color: #b91c1c; }
+.status-pill.completed { background: #dcfce7; color: #16a34a; }
 </style>
