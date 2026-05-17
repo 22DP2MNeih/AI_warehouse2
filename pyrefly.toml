@@ -1,0 +1,6 @@
+# Tell Pyrefly exactly where to look for your local virtual environment packages
+site-package-path = "C:/Users/marci/Downloads/School_projects/Python/AI_warehouse2/.venv/Lib/site-packages"
+
+# Changes the preset from basic to default, forcing it to actively index imports
+[tool.pyrefly]
+typeCheckingMode = "default"

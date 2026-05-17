@@ -8,53 +8,36 @@ import DataTable from '../components/DataTable.vue';
 import DynamicForm from '../components/DynamicForm.vue';
 import { useAuthStore } from '../stores/auth';
 
-
+// --- State Management ---
 const authStore = useAuthStore();
-console.log(authStore);
+const { user, userRole } = storeToRefs(authStore);
 
+const inventory = ref([]);
+const warehouses = ref([]);
+const formOpen = ref(false);
+const formTitle = ref("");
+const formFields = ref([]);
+const formData = ref({});
+const action_type = ref("");
+const last_part = ref({});
+
+// --- Authorization Computed Properties ---
 const canAddPart = computed(() => {
-    return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
+  return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
 });
 
 const canRequestPart = computed(() => {
-    return authStore.userRole === 'MECHANIC';
-});
-// const response = await api.getInventory();
-// console.log(response.data);
-const inventory = ref([]);
-const warehouses = ref([]);
-
-onMounted(async () => {
-    try {
-        const [inventoryRes, warehouseRes] = await Promise.all([
-            api.getInventory(),
-            api.getWarehouses()
-        ]);
-        
-        inventory.value = inventoryRes.data;
-        warehouses.value = warehouseRes.data; // Fill the ref
-    } catch (err) {
-        // 4. Use translation in JS logic
-        // error.value = t.value('inventory.errorLoad'); 
-        console.error(err);
-    } finally {
-        // loading.value = false;
-    }
+  return authStore.userRole === 'MECHANIC';
 });
 
-const handleDeleted = (id) => {
-    parts.value = parts.value.filter(p => p.id !== id);
-};
+const userMeta = computed(() => {
+  return {
+    username: user.value?.username || 'Guest',
+    role: userRole.value
+  };
+});
 
-const handleUpdate = async () => {
-    try {
-        const response = await api.getInventory();
-        parts.value = response.data;
-    } catch (err) {
-        console.error(err);
-    }
-};
-
+// --- Existing Configurations ---
 const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
   { id: 'location', type: 'text', label: 'Atrašanās vieta' },
@@ -72,17 +55,16 @@ const tableCols = [
 ];
 
 const rowActionsWHMngr = [
-  { id: 'transfer_part', label: 'Parvietot' },
+  { id: 'transfer_part', label: 'Pārvietot' },
 ];
 const rowActionsMech = [
   { id: 'transfer_part', label: 'Izveidot pasūtījumu' },
   { id: 'use_part', label: 'Izmantot detaļu' },
 ];
 
-const rowActions = computed( () => {
-  console.log(authStore.userRole);
-  return canAddPart.value? rowActionsWHMngr : rowActionsMech;
-})
+const rowActions = computed(() => {
+  return canAddPart.value ? rowActionsWHMngr : rowActionsMech;
+});
 
 const myGlobalActions = [
   { id: 'add-part', label: 'Pievienot detaļu' },
@@ -90,20 +72,7 @@ const myGlobalActions = [
   { id: 'import', label: 'Importēt CSV' }
 ];
 
-const action_type = ref("");
-const last_part = ref({});
-
-const handleGlobalAction = (id) => {
-  if (id === 'add-part') {
-    formTitle.value = "Pievienot Detaļu";
-    action_type.value = id;
-    formFields.value = inventoryFields.value;
-    formOpen.value = true; 
-  }
-};
-
-const formOpen = ref(false);
-const formData = ref({});
+// --- Form Blueprints ---
 const consumeFields = [
   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
@@ -117,13 +86,12 @@ const inventoryFields = computed(() => [
   { id: 'location', type: 'text', label: 'Novietojums', required: true },
   { id: 'vin_input', type: 'text', label: 'VIN Kods', required: true },
   { 
-    id: 'warehouse_id', // Pro-tip: Changed to _id since you'll likely save the ID, not the name
+    id: 'warehouse_id', 
     type: 'select', 
     label: 'Noliktava', 
-    // Map the raw data to Label/Value pairs
     options: warehouses.value.map(w => ({
-      label: w.name,      // What the user sees in the dropdown
-      key: w.id         // What gets sent to the database
+      label: w.name,      
+      key: w.id         
     })),
     required: true 
   },
@@ -137,6 +105,7 @@ const inventoryFields = computed(() => [
   { id: 'sharing_value_input', type: 'float', label: 'Dalšanās skaits', min: 0, step: 0.00001 },
   { id: 'description_input', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true },
 ]);
+
 const transferFields = computed(() => [
   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
@@ -149,14 +118,36 @@ const transferFields = computed(() => [
       label: w.name,
       key: w.id
     })),
-    required: false // Optional: Django will auto-assign if left blank
+    required: false 
   },
   { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
 ]);
 
-const formFields = ref([]);
+// --- Logic ---
+onMounted(async () => {
+  try {
+    const [inventoryRes, warehouseRes] = await Promise.all([
+      api.getInventory(),
+      api.getWarehouses()
+    ]);
+    
+    inventory.value = inventoryRes.data;
+    warehouses.value = warehouseRes.data;
+  } catch (err) {
+    console.error(err);
+  }
+});
 
-const formTitle = ref("");
+// --- Event Handlers ---
+const handleGlobalAction = (id) => {
+  if (id === 'add-part') {
+    formTitle.value = "Pievienot Detaļu";
+    action_type.value = id;
+    formFields.value = inventoryFields.value;
+    formOpen.value = true; 
+  }
+};
+
 const handleAction = ({ action, item }) => {
   if (!item) return;
   
@@ -164,7 +155,7 @@ const handleAction = ({ action, item }) => {
   action_type.value = action;
   
   if (action === 'use_part') {
-    formTitle.value = "Izmantot Detaļu"
+    formTitle.value = "Izmantot Detaļu";
     formFields.value = consumeFields;
     formData.value = {
       part_name: item.product_name,
@@ -173,12 +164,12 @@ const handleAction = ({ action, item }) => {
     };
     formOpen.value = true;
   } else if (action === 'transfer_part') {
-    formTitle.value = "Pārvietot Detaļu"
-    formFields.value = transferFields.value; // Use the computed value
+    formTitle.value = "Pārvietot Detaļu";
+    formFields.value = transferFields.value;
     formData.value = {
       part_name: item.product_name,
       vin_input: item.vin,
-      from_warehouse: item.warehouse_name, // Displayed in disabled text field
+      from_warehouse: item.warehouse_name,
       quantity: 1
     };
     formOpen.value = true;
@@ -190,7 +181,6 @@ const handleSave = async (newData) => {
     if (action_type.value === "add-part") {
       await api.createPart(newData);
     } 
-    
     else if (action_type.value === "use_part") {
       const warehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
       const apiData = {
@@ -202,7 +192,6 @@ const handleSave = async (newData) => {
       };
       await createAndCompleteOrder(apiData);
     } 
-    
     else if (action_type.value === "transfer_part") {
       const sourceWarehouse = warehouses.value.find(w => w.name === last_part.value.warehouse_name);
       const apiData = {
@@ -210,100 +199,146 @@ const handleSave = async (newData) => {
         product_listing: last_part.value.company_product,
         quantity: newData.quantity,
         from_warehouse: sourceWarehouse?.id,
-        // If to_warehouse is null, Django perform_create sets it to user.warehouse
         to_warehouse: newData.to_warehouse || null 
       };
       
       await api.createOrder(apiData);
     }
 
-    // Common cleanup after any successful action
     formOpen.value = false;
     const inventoryRes = await api.getInventory();
     inventory.value = inventoryRes.data;
 
   } catch (err) {
     console.error(`Error executing ${action_type.value}:`, err);
-    // You could add a toast notification here
   }
 };
 
 const createAndCompleteOrder = async (apiData) => {
   const response = await api.createOrder(apiData);
-  api.completeOrder(response.data.id);
+  await api.completeOrder(response.data.id);
 };
 
 const closeForm = () => {
   formOpen.value = false;
 };
-const { user, userRole } = storeToRefs(authStore);
-const userMeta = computed(() => {
-  return {
-    // Access the .value because these are now refs
-    username: user.value?.username || 'Guest',
-    role: userRole.value
-  };
-});
-console.log(rowActions);
+
+// Placeholder filters to avoid template issues if SideBar expects v-model
+const activeFilters = ref({});
 </script>
 
 <template>
-  <div class="app-wrapper">
-     <SideBar 
-      v-model="activeFilters" 
-      :config="sidebarConfig" 
-    />
-    <main v-if="!formOpen">
-      <NavBar :userMeta="userMeta" activeTab="warehouse"/>
-      <div class="page-content">
-        <DataTable 
-          :columns="tableCols" 
-          :data="inventory"
-          :rowActions="rowActions"
-          :globalActions="myGlobalActions"
-          @action="handleAction"
-          @globalAction="handleGlobalAction"
-        />
-      </div>
-    </main>
-    <main v-else class="flex justify-center pt-10">
-      <DynamicForm 
-        :title="formTitle"
-        :fields="formFields"
-        :initialData="formData"
-        @submit="handleSave"
-        @cancel="closeForm"
-      />
-    </main>
+  <div class="app-layout">
+    <NavBar :userMeta="userMeta" activeTab="warehouse" />
+
+    <div class="content-body">
+      <SideBar v-model="activeFilters" :config="sidebarConfig" />
+
+      <main class="main-content">
+        <template v-if="!formOpen">
+          <div class="view-header">
+            <div class="header-titles">
+              <h1 class="view-title">Noliktavas Inventārs</h1>
+              <p class="view-subtitle">Pārvaldiet uzņēmuma detaļas un pārvietojumus</p>
+            </div>
+            <div class="view-actions" v-if="canAddPart">
+              <button class="btn-add" @click="handleGlobalAction('add-part')">
+                + Pievienot detaļu
+              </button>
+            </div>
+          </div>
+
+          <DataTable 
+            :columns="tableCols" 
+            :data="inventory"
+            :rowActions="rowActions"
+            :globalActions="myGlobalActions"
+            @action="handleAction"
+            @globalAction="handleGlobalAction"
+          />
+        </template>
+
+        <div v-else class="form-container">
+          <DynamicForm 
+            :title="formTitle"
+            :fields="formFields"
+            :initialData="formData"
+            @submit="handleSave"
+            @cancel="closeForm"
+          />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
-<style>
-:root {
-  --bg-color: #f8fafc;
-  --primary-blue: #2563eb;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', sans-serif;
-}
-
-.app-wrapper {
-  display: flex;
-  min-height: 100vh;
-  background-color: var(--bg-color);
-}
-
-main {
-  flex: 1;
+<style scoped>
+.app-layout {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  background-color: #f8fafc;
 }
 
-.page-content {
-  padding: 40px;
+.content-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+:deep(.sidebar-container) {
+  width: 320px;
+  border-right: 1px solid #e2e8f0;
+  background: white;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem 3rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.view-title {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.view-subtitle {
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.btn-add {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1), 0 2px 4px -1px rgba(37, 99, 235, 0.06);
+}
+
+.btn-add:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.form-container {
+  display: flex;
+  justify-content: center;
+  padding-top: 2.5rem;
 }
 </style>

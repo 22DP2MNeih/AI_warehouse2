@@ -1,9 +1,20 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import SideBar from '../components/SideBar.vue';
 import NavBar from '../components/NavBar.vue';
-import Table from '../components/TheTable.vue';
+import DataTable from '../components/DataTable.vue';
+import { useAuthStore } from '../stores/auth';
 
+const authStore = useAuthStore();
+const { user, userRole } = storeToRefs(authStore);
+const userMeta = computed(() => {
+  return {
+    // Access the .value because these are now refs
+    username: user.value?.username || 'Guest',
+    role: userRole.value
+  };
+});
 const employees = ref([
   { name: "Jānis Kalniņš", role: "Vadītājs", status: "Aktīvs" },
   { name: "Mārīte Ozola", role: "Operators", status: "Atvaļinājumā" },
@@ -36,9 +47,6 @@ const sidebarConfig = [
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
   { id: 'location', type: 'text', label: 'Atrašanās vieta' },
   { id: 'postal_code', type: 'text', label: 'Pasta indekss' },
-  { id: 'service_level', type: 'slider', label: 'Servisa Līmenis', modelValue: 97.8, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  { id: 'weight', type: 'slider', label: 'Svērums', modelValue: 93.6, min: 90, max: 99.5, step: 0.1, unit: '%' },
-  { id: 'procurement_priorities', type: 'slider', label: 'Iegādes prioritātes', modelValue: 95.9, min: 90, max: 99.5, step: 0.1, unit: '%' },
 ];
 </script>
 
@@ -50,13 +58,15 @@ const sidebarConfig = [
       :config="sidebarConfig" 
     />
     <main>
-      <NavBar />
+      <NavBar :userMeta="userMeta" activeTab="company"/>
       <div class="page-content">
-        <Table 
-          title="Darbinieki" 
-          :items="employees" 
-          @add="handleAddEmployee"
-          @delete="handleDelete"
+        <DataTable 
+          :columns="tableCols" 
+          :data="inventory"
+          :rowActions="rowActions"
+          :globalActions="myGlobalActions"
+          @action="handleAction"
+          @globalAction="handleGlobalAction"
         />
       </div>
     </main>

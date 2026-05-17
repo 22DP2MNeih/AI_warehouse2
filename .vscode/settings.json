@@ -1,3 +1,7 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:venv"
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "python.defaultInterpreterPath": "C:\\Users\\marci\\Downloads\\School_projects\\Python\\AI_warehouse2\\.venv\\Scripts\\python.exe",
+    "python.analysis.extraPaths": [
+        "C:\\Users\\marci\\Downloads\\School_projects\\Python\\AI_warehouse2\\.venv\\Lib\\site-packages"
+    ]
 }

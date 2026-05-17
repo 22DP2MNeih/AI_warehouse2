@@ -1,18 +1,24 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+
 const props = defineProps({
   userMeta: { type: Object, required: true },
 });
 console.log(props.userMeta);
 
+// 1. Setup template refs instead of hardcoded DOM IDs
+const canvasRef = ref(null);
+const containerRef = ref(null);
 const themeLabel = ref(null);
+
 const isDarkMode = ref(false);
 
 class ThemeVisualizer {
-  constructor(canvasId, containerId, labelRef) {
-    this.canvas = document.getElementById(canvasId);
+  // Pass the actual DOM elements instead of string IDs
+  constructor(canvasElement, containerElement, labelRef) {
+    this.canvas = canvasElement;
     this.ctx = this.canvas.getContext('2d');
-    this.container = document.getElementById(containerId);
+    this.container = containerElement;
     this.label = labelRef;
 
     this.size = 20;
@@ -41,7 +47,6 @@ class ThemeVisualizer {
 
   toggle() {
     this.isDark = !this.isDark;
-    // Apply theme to the root element
     document.documentElement.setAttribute('data-theme', this.isDark ? 'dark' : 'light');
     if (this.label.value) {
       this.label.value.innerText = this.isDark ? 'Dark Mode' : 'Light Mode';
@@ -124,7 +129,10 @@ class ThemeVisualizer {
 }
 
 onMounted(() => {
-  new ThemeVisualizer('themeCanvas', 'toggle-container', themeLabel);
+  // 2. Pass the direct DOM element references (`.value`) into the class instance safely
+  if (canvasRef.value && containerRef.value) {
+    new ThemeVisualizer(canvasRef.value, containerRef.value, themeLabel);
+  }
 });
 
 const tabs = [
@@ -135,24 +143,27 @@ const tabs = [
   {id: "options", text: "Iestatījumi", link: "/options"},
   {id: "ai_predictions", text: "MI ieteikumi", link: "/ai_predictions"},
 ]
-
 </script>
 
 <template>
   <header>
     <ul class="tabs">
-      <li v-for="tab in tabs" :key="tab.id"><router-link :to="tab.link">{{ tab.text }}</router-link></li>
+      <li v-for="tab in tabs" :key="tab.id">
+        <router-link :to="tab.link">{{ tab.text }}</router-link>
+      </li>
     </ul>
 
     <div class="header-tools">
       <div class="user-meta">
-        <strong>{{ props.userMeta.username }}</strong>
-        <strong>{{ props.userMeta.role }}</strong>
+        <!-- Optional chaining protects against unpopulated auth store properties -->
+        <strong>{{ props.userMeta?.username }}</strong>
+        <strong>{{ props.userMeta?.role }}</strong>
         <span class="logout">Iziet</span>
       </div>
       
-      <div id="toggle-container" title="Toggle Dark/Light Mode">
-        <canvas id="themeCanvas"></canvas>
+      <!-- 3. Bind the refs to the HTML template elements -->
+      <div ref="containerRef" title="Toggle Dark/Light Mode" class="toggle-container-style">
+        <canvas ref="canvasRef"></canvas>
       </div>
       <div class="label-text" ref="themeLabel" v-show="false">Light Mode</div>
 
@@ -211,7 +222,8 @@ header {
   gap: 20px;
 }
 
-#toggle-container {
+/* Changed selector from ID (#toggle-container) to class (.toggle-container-style) */
+.toggle-container-style {
   cursor: pointer;
   user-select: none;
   display: flex;
@@ -226,6 +238,7 @@ header {
 }
 
 .user-meta { text-align: right; font-size: 0.85rem; }
+.user-meta strong { display: block; } /* Separates username and role visually */
 .logout { color: #ef4444; font-weight: 600; cursor: pointer; margin-left: 8px; font-size: 0.75rem; }
 
 .btn-sq {

@@ -5,7 +5,7 @@ import api from '../services/api';
 import NavBar from '../components/NavBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DataTable from '../components/DataTable.vue';
-import DynamicForm from '../components/DynamicForm.vue'; // 1. Import DynamicForm
+import DynamicForm from '../components/DynamicForm.vue';
 import { useAuthStore } from '../stores/auth';
 
 
