@@ -21,6 +21,7 @@ class CustomUser(AbstractUser):
 
     company = models.ForeignKey('inventory.Company', on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')
     warehouse = models.ForeignKey('inventory.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='staff')
+    approved = models.BooleanField(default=False)
 
     def __str__(self):
         org = f"{self.company.name}" if self.company else "Nav uzņēmuma"

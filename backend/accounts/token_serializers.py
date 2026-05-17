@@ -1,6 +1,13 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        if not self.user.approved:
+            from rest_framework.exceptions import AuthenticationFailed
+            raise AuthenticationFailed("Jūsu konts vēl nav apstiprināts. Lūdzu, gaidiet sava uzņēmuma CEO apstiprinājumu.")
+        return data
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)

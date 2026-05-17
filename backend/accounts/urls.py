@@ -11,6 +11,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 router = DefaultRouter()
+router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),

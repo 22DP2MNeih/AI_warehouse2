@@ -120,6 +120,12 @@ export default {
   getCompanyUsers() {
     return apiClient.get('/auth/users/');
   },
+  approveUser(id, warehouseId) {
+    return apiClient.post(`/auth/users/${id}/approve/`, { warehouse: warehouseId });
+  },
+  updateUser(id, data) {
+    return apiClient.patch(`/auth/users/${id}/`, data);
+  },
   updateUserRole(id, role) {
     return apiClient.patch(`/auth/users/${id}/`, { role });
   },
