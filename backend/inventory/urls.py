@@ -7,7 +7,8 @@ from .views import (
     OrderViewSet,
     MarketViewSet,
     WarehouseViewSet,
-    CompanySettingsViewSet
+    CompanySettingsViewSet,
+    create_payment_intent
 )
 
 # API MARŠRUTĒŠANA
@@ -23,5 +24,6 @@ router.register(r'warehouses', WarehouseViewSet, basename='warehouse')
 router.register(r'company-settings', CompanySettingsViewSet, basename='company-settings')
 
 urlpatterns = [
+    path('payments/create-intent/', create_payment_intent, name='create-payment-intent'),
     path('', include(router.urls)),
 ]

@@ -90,14 +90,17 @@ export default {
   getOrders() {
     return apiClient.get('/orders/');
   },
-  approveOrder(id) {
-    return apiClient.post(`/orders/${id}/approve/`);
+  approveOrder(id, data) {
+    return apiClient.post(`/orders/${id}/approve/`, data);
+  },
+  createPaymentIntent(amount) {
+    return apiClient.post('/payments/create-intent/', { amount });
   },
   rejectOrder(id) {
     return apiClient.post(`/orders/${id}/reject/`);
   },
-  completeOrder(id) {
-    return apiClient.post(`/orders/${id}/complete/`);
+  completeOrder(id, data) {
+    return apiClient.post(`/orders/${id}/complete/`, data);
   },
   deleteOrder(id) {
     return apiClient.delete(`/orders/${id}/`);

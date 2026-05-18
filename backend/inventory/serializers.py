@@ -200,6 +200,17 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['ordered_by', 'status', 'created_at']
 
     def validate(self, data):
+        # If the order is still PENDING (either new or existing), we allow warehouses to be optional at this stage.
+        # Strict validation is applied during the manager's approval or completion phase.
+        status = data.get('status')
+        if not status and self.instance:
+            status = self.instance.status
+        if not status:
+            status = 'PENDING'
+            
+        if status == 'PENDING':
+            return data
+            
         dest_ext = data.get('destination_external')
         f_wh = data.get('from_warehouse')
         

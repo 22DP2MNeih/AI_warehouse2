@@ -238,6 +238,10 @@ class Order(models.Model):
         """
         super().clean()
         
+        # Bypass strict checks on pending orders (so they can be created without immediately setting a warehouse)
+        if self.status == 'PENDING':
+            return
+            
         has_external = bool(self.destination_external)
         has_from = bool(self.from_warehouse)
         has_to = bool(self.to_warehouse)
