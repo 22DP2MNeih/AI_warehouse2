@@ -66,11 +66,16 @@ const rowActions = computed(() => {
   return canAddPart.value ? rowActionsWHMngr : rowActionsMech;
 });
 
-const myGlobalActions = [
-  { id: 'add-part', label: 'Pievienot detaļu' },
-  { id: 'export', label: 'Eksportēt CSV' },
-  { id: 'import', label: 'Importēt CSV' }
-];
+const myGlobalActions = computed(() => {
+  const actions = [
+    { id: 'export', label: 'Eksportēt CSV' }
+  ];
+  if (canAddPart.value) {
+    actions.unshift({ id: 'add-part', label: 'Pievienot detaļu' });
+    actions.push({ id: 'import', label: 'Importēt CSV' });
+  }
+  return actions;
+});
 
 // --- Form Blueprints ---
 const consumeFields = [
@@ -139,12 +144,59 @@ onMounted(async () => {
 });
 
 // --- Event Handlers ---
-const handleGlobalAction = (id) => {
+const handleGlobalAction = async (id) => {
   if (id === 'add-part') {
     formTitle.value = "Pievienot Detaļu";
     action_type.value = id;
     formFields.value = inventoryFields.value;
     formOpen.value = true; 
+  } else if (id === 'export') {
+    try {
+      const response = await api.exportPartsCsv();
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'warehouse_inventory.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV Export failed:", err);
+      alert("Kļūda eksportējot datus: " + (err.response?.data?.error || "Mēģiniet vēlreiz."));
+    }
+  } else if (id === 'import') {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv';
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        const response = await api.importPartsCsv(file);
+        const inventoryRes = await api.getInventory();
+        inventory.value = inventoryRes.data;
+        
+        const createdCount = response.data.created || 0;
+        const updatedCount = response.data.updated || 0;
+        const errors = response.data.errors || [];
+        
+        let message = `Imports pabeigts!\nIzveidoti: ${createdCount} jauni ieraksti\nAtjaunināti: ${updatedCount} ieraksti`;
+        if (errors.length > 0) {
+          message += `\n\nKļūdas (${errors.length}):\n` + errors.slice(0, 5).join('\n');
+          if (errors.length > 5) {
+            message += `\n... un vēl ${errors.length - 5} kļūdas`;
+          }
+        }
+        alert(message);
+      } catch (err) {
+        console.error("CSV Import failed:", err);
+        alert("Kļūda importējot datus: " + (err.response?.data?.error || "Pārbaudiet faila struktūru."));
+      }
+    };
+    fileInput.click();
   }
 };
 
