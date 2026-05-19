@@ -31,6 +31,13 @@ class Warehouse(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='warehouses')
     name = models.CharField(max_length=255)
     address = models.TextField(blank=True)
+    
+    # Point field stores both X and Y (Longitude and Latitude).
+    # srid=4326 uses the WGS 84 coordinate system (the global standard used by GPS).
+    # 6 decimal places is standard accurate tracking for a physical facility
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -17,11 +17,25 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'vin', 'description', 'category', 'created_at']
 
 class WarehouseSerializer(serializers.ModelSerializer):
-    """Simple serializer for warehouse listings."""
-    company_name = serializers.ReadOnlyField(source='company.name')
+    # This automatically converts GeoDjango Point objects into a dict: 
+    # {"latitude": XX.XXXX, "longitude": YY.YYYY} and vice-versa
+    # 6 decimal places is standard accurate tracking for a physical facility
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
+
     class Meta:
         model = Warehouse
-        fields = ['id', 'name', 'company', 'company_name', 'address']
+        fields = [
+            'id', 
+            'company', 
+            'name', 
+            'address', 
+            'latitude', 
+            'longitude', 
+            'created_at'
+        ]
+
+        read_only_fields = ['id', 'created_at']
 
 class CompanyProductSerializer(serializers.ModelSerializer):
     """Company-specific catalog entry."""
