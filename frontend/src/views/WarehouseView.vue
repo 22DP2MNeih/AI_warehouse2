@@ -21,6 +21,16 @@ const formData = ref({});
 const action_type = ref("");
 const last_part = ref({});
 
+// --- Reactive State for Filters ---
+const activeFilters = ref({
+  product_name: '',
+  vin: '',
+  sku: '',
+  warehouse_id: '',
+  company_name: '',
+  location: ''
+});
+
 // --- Authorization Computed Properties ---
 const canAddPart = computed(() => {
   return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(authStore.userRole);
@@ -37,12 +47,25 @@ const userMeta = computed(() => {
   };
 });
 
-// --- Existing Configurations ---
-const sidebarConfig = [
+// --- Dynamic Sidebar Configuration ---
+const sidebarConfig = computed(() => [
+  { id: 'product_name', type: 'text', label: 'Detaļas nosaukums' },
+  { id: 'vin', type: 'text', label: 'VIN kods' },
+  { id: 'sku', type: 'text', label: 'SKU kods' },
+  { 
+    id: 'warehouse_id', 
+    type: 'select', 
+    label: 'Noliktava', 
+    options: warehouses.value.map(w => ({
+      key: w.id,
+      label: w.name
+    }))
+  },
   { id: 'company_name', type: 'text', label: 'Kompānijas Nosaukums' },
-  { id: 'location', type: 'text', label: 'Atrašanās vieta' },
-];
+  { id: 'location', type: 'text', label: 'Novietojuma kods' },
+]);
 
+// --- Table Configuration ---
 const tableCols = [
   { id: 'product_name', label: 'Nosaukums' },
   { id: 'vin', label: 'VIN' },
@@ -75,6 +98,46 @@ const myGlobalActions = computed(() => {
     actions.push({ id: 'import', label: 'Importēt CSV' });
   }
   return actions;
+});
+
+// --- Client-Side Filtering Engine ---
+const filteredInventory = computed(() => {
+  return inventory.value.filter(item => {
+    // 1. Filter by Product Name
+    if (activeFilters.value.product_name && 
+        !item.product_name?.toLowerCase().includes(activeFilters.value.product_name.toLowerCase())) {
+      return false;
+    }
+    // 2. Filter by VIN
+    if (activeFilters.value.vin && 
+        !item.vin?.toLowerCase().includes(activeFilters.value.vin.toLowerCase())) {
+      return false;
+    }
+    // 3. Filter by SKU
+    if (activeFilters.value.sku && 
+        !item.sku?.toLowerCase().includes(activeFilters.value.sku.toLowerCase())) {
+      return false;
+    }
+    // 4. Filter by Warehouse ID
+    if (activeFilters.value.warehouse_id) {
+      // Find matching warehouse object from the warehouses pool to compare against row data strings
+      const targetWarehouse = warehouses.value.find(w => w.id === activeFilters.value.warehouse_id);
+      if (targetWarehouse && item.warehouse_name !== targetWarehouse.name) {
+        return false;
+      }
+    }
+    // 5. Filter by Company Name (If provided in item fields)
+    if (activeFilters.value.company_name && 
+        !item.company_name?.toLowerCase().includes(activeFilters.value.company_name.toLowerCase())) {
+      return false;
+    }
+    // 6. Filter by Location
+    if (activeFilters.value.location && 
+        !item.location?.toLowerCase().includes(activeFilters.value.location.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
 });
 
 // --- Form Blueprints ---
@@ -274,9 +337,6 @@ const createAndCompleteOrder = async (apiData) => {
 const closeForm = () => {
   formOpen.value = false;
 };
-
-// Placeholder filters to avoid template issues if SideBar expects v-model
-const activeFilters = ref({});
 </script>
 
 <template>
