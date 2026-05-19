@@ -31,7 +31,8 @@ const stripeInstance = ref(null);
 const paymentElementInstance = ref(null);
 
 const cardNumber = ref("");
-const cardExpiry = ref("");
+const cardExpiryMonth = ref("");
+const cardExpiryYear = ref("");
 const cardCvc = ref("");
 const cardZip = ref("");
 const payError = ref("");
@@ -56,14 +57,16 @@ const formatCardNumber = (e) => {
   cardNumber.value = parts.join(' ');
 };
 
-const formatExpiry = (e) => {
+const formatExpiryMonth = (e) => {
   let value = e.target.value.replace(/\D/g, '');
-  if (value.length > 4) value = value.slice(0, 4);
-  if (value.length >= 2) {
-    cardExpiry.value = value.slice(0, 2) + '/' + value.slice(2);
-  } else {
-    cardExpiry.value = value;
-  }
+  if (value.length > 2) value = value.slice(0, 2);
+  cardExpiryMonth.value = value;
+};
+
+const formatExpiryYear = (e) => {
+  let value = e.target.value.replace(/\D/g, '');
+  if (value.length > 4) value = value.slice(0, 4); // Supports both YY or YYYY inputs safely
+  cardExpiryYear.value = value;
 };
 
 const formatCvc = (e) => {
@@ -253,9 +256,32 @@ const handlePaymentSubmit = async () => {
       if (cleanCard.length < 16) {
         throw new Error("Nepilnīgs kartes numurs. Lūdzu, ievadiet 16 zīmju kartes numuru.");
       }
-      if (!cardExpiry.value.includes('/') || cardExpiry.value.length < 5) {
-        throw new Error("Nepilnīgs derīguma termiņš (MM/YY).");
+      
+      // --- Clean, Explicit Expiry Validation ---
+      const expMonth = parseInt(cardExpiryMonth.value, 10);
+      let expYear = parseInt(cardExpiryYear.value, 10);
+
+      if (!cardExpiryMonth.value || !cardExpiryYear.value) {
+        throw new Error("Lūdzu, ievadiet pilnu kartes derīguma termiņu.");
       }
+
+      if (isNaN(expMonth) || expMonth < 1 || expMonth > 12) {
+        throw new Error("Nederīgs mēnesis. Jābūt robežās no 01 līdz 12.");
+      }
+
+      // If user typed a 2-digit year (e.g., "29"), convert it to 4 digits ("2029")
+      if (cardExpiryYear.value.length === 2) {
+        expYear = parseInt('20' + cardExpiryYear.value, 10);
+      }
+
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+
+      if (isNaN(expYear) || expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+        throw new Error("Kartes derīguma termiņš ir pagājis.");
+      }
+      
       if (cardCvc.value.length < 3) {
         throw new Error("Nepilnīgs drošības kods (CVC).");
       }
@@ -393,6 +419,59 @@ const closeForm = () => {
                   />
                   <div class="card-brand-icon" :class="cardBrand"></div>
                 </div>
+                
+                <!-- Unified Container splitting Month and Year inputs -->
+                <div class="card-sub-fields">
+                  <input 
+                    type="text" 
+                    class="card-field split-expiry" 
+                    placeholder="MM" 
+                    v-model="cardExpiryMonth"
+                    @input="formatExpiryMonth"
+                    required
+                  />
+                  <input 
+                    type="text" 
+                    class="card-field split-expiry" 
+                    placeholder="YYYY" 
+                    v-model="cardExpiryYear"
+                    @input="formatExpiryYear"
+                    required
+                  />
+                  <input 
+                    type="password" 
+                    class="card-field half" 
+                    placeholder="CVC" 
+                    v-model="cardCvc"
+                    @input="formatCvc"
+                    required
+                  />
+                </div>
+                <input 
+                  type="text" 
+                  class="card-field zip-field" 
+                  placeholder="Pasta indekss (ZIP)" 
+                  v-model="cardZip"
+                  required
+                />
+              </div>
+              <div class="test-card-hint">
+                💡 Izmantojiet testa karti: <strong>4242 4242 4242 4242</strong> ar jebkuru nākotnes derīguma termiņu un CVC.
+              </div>
+            </div>
+              <label class="input-label">Kartes informācija (Testa režīms)</label>
+              <div class="card-input-container">
+                <div class="card-number-wrapper">
+                  <input 
+                    type="text" 
+                    class="card-field card-num" 
+                    placeholder="1234 5678 9101 1121" 
+                    v-model="cardNumber"
+                    @input="formatCardNumber"
+                    required
+                  />
+                  <div class="card-brand-icon" :class="cardBrand"></div>
+                </div>
                 <div class="card-sub-fields">
                   <input 
                     type="text" 
@@ -422,7 +501,7 @@ const closeForm = () => {
               <div class="test-card-hint">
                 💡 Izmantojiet testa karti: <strong>4242 4242 4242 4242</strong> ar jebkuru nākotnes derīguma termiņu un CVC.
               </div>
-            </div>
+            
           </div>
 
           <div v-if="payError" class="payment-error-msg">
