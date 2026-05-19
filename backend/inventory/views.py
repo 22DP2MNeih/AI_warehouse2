@@ -41,6 +41,21 @@ class WarehouseViewSet(viewsets.ModelViewSet):
             return Warehouse.objects.none()
         return Warehouse.objects.filter(company=user.company)
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company') and user.company:
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        # Enforce that the warehouse remains tied to the user's company on update
+        if hasattr(user, 'company') and user.company:
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
+
 class CompanySettingsViewSet(viewsets.ModelViewSet):
     """View to manage AI settings for companies."""
     serializer_class = CompanySettingsSerializer

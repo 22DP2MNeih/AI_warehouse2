@@ -35,7 +35,7 @@ class WarehouseSerializer(serializers.ModelSerializer):
             'created_at'
         ]
 
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'company', 'created_at']
 
 class CompanyProductSerializer(serializers.ModelSerializer):
     """Company-specific catalog entry."""

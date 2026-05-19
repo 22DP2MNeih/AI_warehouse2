@@ -22,7 +22,8 @@ const formTitle = ref("");
 const formFields = ref([]);
 const formData = ref({});
 const selectedEmployee = ref(null);
-const actionType = ref(""); // "approve" or "edit"
+const selectedWarehouse = ref(null);
+const actionType = ref(""); // "approve", "edit", "add-warehouse", "edit-warehouse"
 
 const userMeta = computed(() => {
   return {
@@ -49,6 +50,13 @@ const pendingCols = [
   { id: 'role', label: 'Pieprasītā loma' }
 ];
 
+const warehouseCols = [
+  { id: 'name', label: 'Noliktava' },
+  { id: 'address', label: 'Adrese' },
+  { id: 'latitude', label: 'Platums (Lat)' },
+  { id: 'longitude', label: 'Garums (Lng)' }
+];
+
 const sidebarConfig = [
   { id: 'search', type: 'text', label: 'Meklēt darbinieku' }
 ];
@@ -73,6 +81,16 @@ const pendingRowActions = [
   { id: 'approve', label: 'Apstiprināt', class: 'btn-primary-action' },
   { id: 'reject', label: 'Noraidīt', class: 'btn-danger' }
 ];
+
+const warehouseRowActions = [
+  { id: 'edit-warehouse', label: 'Rediģēt', class: 'btn-primary-action' },
+  { id: 'delete-warehouse', label: 'Dzēst', class: 'btn-danger' }
+];
+
+// --- Authorization Computed Properties ---
+const canManageWarehouses = computed(() => {
+  return ['ADMIN', 'CEO', 'WAREHOUSE_MANAGER'].includes(userRole.value);
+});
 
 // --- Form Blueprints ---
 const approveFields = computed(() => [
@@ -112,6 +130,13 @@ const editFields = computed(() => [
     })),
     required: true 
   }
+]);
+
+const warehouseFields = computed(() => [
+  { id: 'name', type: 'text', label: 'Noliktavas nosaukums', required: true },
+  { id: 'address', type: 'textarea', label: 'Adrese', required: false, fullWidth: true },
+  { id: 'latitude', type: 'float', label: 'Platums (Latitude)', required: false, min: -90, max: 90, step: 0.000001 },
+  { id: 'longitude', type: 'float', label: 'Garums (Longitude)', required: false, min: -180, max: 180, step: 0.000001 }
 ]);
 
 // --- Fetch Data ---
@@ -189,7 +214,7 @@ const handleActiveAction = async ({ action, item }) => {
 const handlePendingAction = async ({ action, item }) => {
   if (action === 'approve') {
     if (warehouses.value.length === 0) {
-      alert("Lūdzu, vispirms izveidojiet vismaz vienu noliktavu Noliktavas skatā, lai varētu apstiprināt darbiniekus.");
+      alert("Lūdzu, vispirms izveidojiet vismaz vienu noliktavu, lai varētu apstiprināt darbiniekus.");
       return;
     }
     actionType.value = "approve";
@@ -215,6 +240,48 @@ const handlePendingAction = async ({ action, item }) => {
   }
 };
 
+const handleWarehouseGlobalAction = (action) => {
+  if (action === 'add-warehouse') {
+    actionType.value = "add-warehouse";
+    formTitle.value = "Pievienot noliktavu";
+    formFields.value = warehouseFields.value;
+    formData.value = {
+      name: '',
+      address: '',
+      latitude: null,
+      longitude: null
+    };
+    formOpen.value = true;
+  }
+};
+
+const handleWarehouseAction = async ({ action, item }) => {
+  if (action === 'edit-warehouse') {
+    actionType.value = "edit-warehouse";
+    selectedWarehouse.value = item;
+    formTitle.value = "Rediģēt noliktavu";
+    formFields.value = warehouseFields.value;
+    formData.value = {
+      name: item.name,
+      address: item.address,
+      latitude: item.latitude,
+      longitude: item.longitude
+    };
+    formOpen.value = true;
+  } else if (action === 'delete-warehouse') {
+    if (confirm(`Vai tiešām vēlaties dzēst noliktavu ${item.name}?`)) {
+      try {
+        await api.deleteWarehouse(item.id);
+        await fetchCompanyData();
+        alert("Noliktava veiksmīgi dzēsta.");
+      } catch (err) {
+        console.error(err);
+        alert("Kļūda dzēšot noliktavu.");
+      }
+    }
+  }
+};
+
 const handleSave = async (newData) => {
   try {
     if (actionType.value === 'approve') {
@@ -227,6 +294,12 @@ const handleSave = async (newData) => {
       };
       await api.updateUser(selectedEmployee.value.id, updatePayload);
       alert("Darbinieka loma un noliktava veiksmīgi mainīta!");
+    } else if (actionType.value === 'add-warehouse') {
+      await api.createWarehouse(newData);
+      alert("Noliktava veiksmīgi izveidota!");
+    } else if (actionType.value === 'edit-warehouse') {
+      await api.updateWarehouse(selectedWarehouse.value.id, newData);
+      alert("Noliktavas dati veiksmīgi saglabāti!");
     }
     formOpen.value = false;
     await fetchCompanyData();
@@ -249,7 +322,7 @@ const handleSave = async (newData) => {
           <div class="view-header">
             <div class="header-titles">
               <h1 class="view-title">Uzņēmuma Pārvaldība</h1>
-              <p class="view-subtitle">{{ companyName }} — Darbinieku un reģistrācijas pieteikumu saraksts</p>
+              <p class="view-subtitle">{{ companyName }} — Darbinieku un noliktavu pārvaldība</p>
             </div>
           </div>
 
@@ -294,6 +367,35 @@ const handleSave = async (newData) => {
                 <span class="role-badge" :class="value.toLowerCase()">
                   {{ roleLabelMap[value] || value }}
                 </span>
+              </template>
+            </DataTable>
+          </div>
+
+          <!-- Warehouses Section -->
+          <div class="section-container">
+            <div class="section-header-row">
+              <h2 class="section-title">Uzņēmuma Noliktavas</h2>
+              <button v-if="canManageWarehouses" class="btn-primary-action btn-add-warehouse" @click="handleWarehouseGlobalAction('add-warehouse')">
+                + Pievienot noliktavu
+              </button>
+            </div>
+            
+            <div v-if="warehouses.length === 0" class="no-pending-msg">
+              Nav reģistrētu noliktavu. Pievienojiet pirmo!
+            </div>
+            
+            <DataTable 
+              v-else
+              :columns="warehouseCols" 
+              :data="warehouses"
+              :rowActions="canManageWarehouses ? warehouseRowActions : []"
+              @action="handleWarehouseAction"
+            >
+              <template #col-latitude="{ value }">
+                <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
+              </template>
+              <template #col-longitude="{ value }">
+                <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
               </template>
             </DataTable>
           </div>
@@ -376,6 +478,23 @@ const handleSave = async (newData) => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header-row .section-title {
+  margin-bottom: 0;
+}
+
+.btn-add-warehouse {
+  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 .pending-count-badge {

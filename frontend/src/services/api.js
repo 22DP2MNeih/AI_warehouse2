@@ -118,6 +118,15 @@ export default {
   getWarehouses() {
     return apiClient.get('/warehouses/');
   },
+  createWarehouse(data) {
+    return apiClient.post('/warehouses/', data);
+  },
+  updateWarehouse(id, data) {
+    return apiClient.put(`/warehouses/${id}/`, data);
+  },
+  deleteWarehouse(id) {
+    return apiClient.delete(`/warehouses/${id}/`);
+  },
 
   // CEO / Management
   getCompanyUsers() {

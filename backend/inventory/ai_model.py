@@ -1,202 +1,282 @@
 import os
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.models import Sequential, load_model, Model
+from tensorflow.keras.layers import Dense, LSTM, Dropout, Input, Concatenate, Multiply
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Sum
-from .models import Order, Company
+from django.db.models import Sum, Max
+from .models import Order, Company, Warehouse, Product, CompanyProduct, WarehouseStock
 
-# GALVENĀ PROGNOZĒŠANAS KLASE
-# Galvenā klase krājumu prognozēšanai izmantojot mākslīgo intelektu.
-# Šī klase parūpējas par TensorFlow modeļa izveidi, datu apstrādi un krājumu sliekšņu aprēķināšanu.
-class InventoryForecastModel:
+class GlobalInventoryModel:
     """
-    Klase, kas atbild par LSTM neironu tīkla izveidi, apmācību un 
-    krājumu patēriņa prognozēšanu konkrētam uzņēmumam.
+    Contextual Part Demand & Connection ANN.
+    Uses a Shared Global Backbone for universal mechanics and a specific Gating Pathway 
+    driven by warehouse inventory signatures and locations to filter demand logic.
     """
-    def __init__(self, company_id, sequence_length=14, n_features=1, service_level=0.95):
-        # Inicializē modeļa parametrus: uzņēmuma ID, vēstures loga garumu un servisa līmeni
-        self.company_id = company_id
+    def __init__(self, sequence_length=14, n_features=1, service_level=0.95):
         self.sequence_length = sequence_length
         self.n_features = n_features
         self.service_level = max(0.90, min(service_level, 0.999))
+        self.model_path = "global_inventory_model.weights.h5"
         
-        # Ceļš uz failu, kurā tiek glabāti modeļa svari
-        self.model_path = f"best_inventory_model_company_{self.company_id}.weights.h5"
+        # Determine part feature dimension dynamically or use fixed sizes
+        # For part feature, we will dummy encode the category. 
+        self.part_feature_dim = 16 
         
-        # Izveido modeļa struktūru un mēģina ielādēt eksistējošos svarus
+        # Max Product ID for warehouse usage vector size
+        max_id = Product.objects.aggregate(Max('id'))['id__max']
+        self.max_part_id = (max_id or 0) + 1000 # Add buffer for new parts
+        
         self.model = self._build_model()
         self._load_weights_if_exist()
 
     def pinball_loss(self, y_true, y_pred):
         """
         Pielāgota zaudējumu funkcija (Pinball Loss), kas nepieciešama kvantiļu regresijai.
-        Tā palīdz modelim prognozēt vērtību ar noteiktu "drošības rezervi" (service level),
-        nevis vienkārši vidējo patēriņu.
         """
         q = tf.constant(self.service_level, dtype=tf.float32)
         error = y_true - y_pred
         return tf.reduce_mean(tf.maximum(q * error, (q - 1) * error))
 
-    # Modeļa arhitektūras definēšana.
-    # Tiek izmantots LSTM (Long Short-Term Memory) tīkls, kas ir piemērots laika rindu datiem.
-    # Modelis sastāv no diviem LSTM slāņiem un blīvajiem (Dense) slāņiem gala rezultāta aprēķināšanai.
     def _build_model(self):
         """
-        Definē LSTM neironu tīkla arhitektūru laika rindu analīzei.
+        Definē Funkcionālā API arhitektūru (Shared Global Backbone + Gating Pathway).
         """
-        model = Sequential([
-            # Pirmais LSTM slānis ar 64 neironiem, kas atgriež secību nākamajam slānim
-            LSTM(64, return_sequences=True, input_shape=(self.sequence_length, self.n_features)),
-            Dropout(0.2), # Datu atmetināšana, lai novērstu pārmācīšanos
-            
-            # Otrais LSTM slānis, kas apkopo informāciju
-            LSTM(32, return_sequences=False),
-            Dropout(0.2),
-            
-            # Pilnībā savienotie slāņi rezultāta iegūšanai
-            Dense(16, activation='relu'),
-            Dense(1) # Izvade: prognozētais preču daudzums
-        ])
+        recent_history_input = Input(shape=(self.sequence_length, self.n_features), name="recent_history")
+        part_features_input = Input(shape=(self.part_feature_dim,), name="part_features")
+        warehouse_usage_input = Input(shape=(self.max_part_id,), name="warehouse_usage")
+        warehouse_location_input = Input(shape=(2,), name="warehouse_location")
+
+        # Global Brain (Logic Pathway)
+        history_lstm = LSTM(32, return_sequences=False)(recent_history_input)
+        history_drop = Dropout(0.2)(history_lstm)
+        global_concat = Concatenate()([history_drop, part_features_input])
+        global_dense1 = Dense(64, activation='relu')(global_concat)
+        global_drop = Dropout(0.2)(global_dense1)
+        global_logic = Dense(32, activation='relu', name="global_logic")(global_drop)
+
+        # Warehouse Filter (Gating Pathway)
+        usage_reduced = Dense(64, activation='relu')(warehouse_usage_input)
+        usage_drop = Dropout(0.2)(usage_reduced)
+        warehouse_concat = Concatenate()([usage_drop, warehouse_location_input])
+        warehouse_dense = Dense(32, activation='relu')(warehouse_concat)
+        warehouse_fingerprint = Dense(32, activation='sigmoid', name="warehouse_fingerprint")(warehouse_dense)
+
+        # Interaction Layer (Hadamard Product)
+        interaction = Multiply(name="hadamard_product")([global_logic, warehouse_fingerprint])
+
+        # Final Layers
+        out_dense = Dense(16, activation='relu')(interaction)
+        output = Dense(1, name="prediction")(out_dense)
+
+        model = Model(
+            inputs=[recent_history_input, part_features_input, warehouse_usage_input, warehouse_location_input], 
+            outputs=output
+        )
         
         optimizer = Adam(learning_rate=0.001)
-        
-        # Modelis tiek kompilēts, izmantojot pielāgoto Pinball zaudējumu funkciju
         model.compile(optimizer=optimizer, loss=self.pinball_loss, metrics=['mae'])
         return model
 
     def _load_weights_if_exist(self):
-        """
-        Pārbauda, vai diskā eksistē iepriekš apmācīti modeļa svari, un ielādē tos.
-        """
         if os.path.exists(self.model_path):
             try:
                 self.model.load_weights(self.model_path)
             except Exception as e:
-                print(f"Could not load weights for company {self.company_id}: {e}")
+                print(f"Could not load global model weights: {e}")
 
     def get_callbacks(self):
-        """
-        Definē atpakaļsaukšanas funkcijas apmācības procesam:
-        - EarlyStopping: pārtrauc apmācību, ja rezultāti vairs neuzlabojas.
-        - ModelCheckpoint: automātiski saglabā labāko modeļa versiju.
-        """
         return [
             EarlyStopping(monitor='loss', patience=5, restore_best_weights=True, verbose=1),
             ModelCheckpoint(filepath=self.model_path, monitor='loss', save_best_only=True, save_weights_only=True, verbose=0)
         ]
 
-    # Datu iegūšana no datubāzes un to sagatavošana modeļa apmācībai.
-    # Šeit mēs apkopojam vēsturiskos patēriņa datus (CONSUME pasūtījumus), sakārtojam tos pa dienām
-    # un izveidojam slīdošā loga (sliding window) sekvences, ko modelis var saprast.
-    def fetch_and_preprocess(self, prediction_period=30):
+    def _extract_part_features(self, product):
         """
-        Iegūst datus no datubāzes un sagatavo tos neironu tīklam (X un y masīvi).
+        Extracts part features and maps them to a fixed-size vector.
+        Currently uses category. Future-proofed for weight/material.
         """
-        # Atlasa pabeigtos patēriņa pasūtījumus konkrētajam uzņēmumam
+        features = np.zeros(self.part_feature_dim, dtype=np.float32)
+        # Hash category string to a few indices to simulate embedding
+        category = product.category or "UNKNOWN"
+        hash_val = hash(category)
+        features[hash_val % self.part_feature_dim] = 1.0
+        
+        # Example of future features to be added to database:
+        # features[10] = product.weight if hasattr(product, 'weight') else 0.0
+        # features[11] = hash(product.material) % 5 if hasattr(product, 'material') else 0.0
+        return features
+
+    def _get_warehouse_usage_vector(self, warehouse):
+        """
+        Generates the normalized usage vector for a given warehouse.
+        """
+        usage_vector = np.zeros(self.max_part_id, dtype=np.float32)
+        
+        # Get historical consumption for this warehouse
         orders = Order.objects.filter(
-            product_listing__company_id=self.company_id,
+            from_warehouse=warehouse,
             order_type='CONSUME',
             status='COMPLETED'
-        ).order_by('created_at')
+        ).values('product_listing__product__id').annotate(total=Sum('quantity'))
+        
+        total_throughput = 0
+        for item in orders:
+            pid = item['product_listing__product__id']
+            qty = item['total']
+            if pid and pid < self.max_part_id:
+                usage_vector[pid] = qty
+                total_throughput += qty
+                
+        if total_throughput > 0:
+            usage_vector = usage_vector / total_throughput
+            
+        return usage_vector
+
+    def _get_warehouse_location(self, warehouse):
+        """
+        Returns normalized (or raw) lat/lon for the warehouse.
+        """
+        lat = float(warehouse.latitude) if warehouse.latitude is not None else 0.0
+        lon = float(warehouse.longitude) if warehouse.longitude is not None else 0.0
+        return np.array([lat, lon], dtype=np.float32)
+
+    def fetch_and_preprocess(self, prediction_period=30):
+        """
+        Fetches ALL anonymous data globally to train the shared backbone.
+        """
+        orders = Order.objects.filter(
+            order_type='CONSUME',
+            status='COMPLETED',
+            from_warehouse__isnull=False
+        ).select_related('product_listing__product', 'from_warehouse').order_by('created_at')
 
         if not orders.exists():
             return None, None
 
-        # Grupē datus pēc preces un datuma
-        data_by_part = {}
+        # Group by Warehouse -> Product -> Date
+        data_by_w_p = {}
+        warehouse_cache = {}
+        product_cache = {}
+        
         for o in orders:
-            pid = o.product_listing.id
+            wid = o.from_warehouse.id
+            pid = o.product_listing.product.id
             day = o.created_at.date()
-            if pid not in data_by_part:
-                data_by_part[pid] = {}
-            if day not in data_by_part[pid]:
-                data_by_part[pid][day] = 0
-            data_by_part[pid][day] += o.quantity
-
-        X, y = [], []
-        # Izveido slīdošā loga secības katrai precei
-        for pid, daily_data in data_by_part.items():
-            sorted_days = sorted(daily_data.keys())
-            if not sorted_days:
-                continue
             
-            start_date = sorted_days[0]
-            end_date = sorted_days[-1]
-            total_days = (end_date - start_date).days + 1
-            
-            # Aizpilda izlaistās dienas ar nulles patēriņu
-            full_series = []
-            for d in range(total_days):
-                current = start_date + timedelta(days=d)
-                full_series.append(daily_data.get(current, 0))
+            if wid not in warehouse_cache:
+                warehouse_cache[wid] = o.from_warehouse
+            if pid not in product_cache:
+                product_cache[pid] = o.product_listing.product
+                
+            if wid not in data_by_w_p:
+                data_by_w_p[wid] = {}
+            if pid not in data_by_w_p[wid]:
+                data_by_w_p[wid][pid] = {}
+            if day not in data_by_w_p[wid][pid]:
+                data_by_w_p[wid][pid][day] = 0
+            data_by_w_p[wid][pid][day] += o.quantity
 
-            seq_len = self.sequence_length
-            horizon = prediction_period
+        X_recent = []
+        X_part = []
+        X_w_usage = []
+        X_w_loc = []
+        y = []
+        
+        # Precompute vectors to save time
+        w_usage_cache = {}
+        w_loc_cache = {}
+        for wid, warehouse in warehouse_cache.items():
+            w_usage_cache[wid] = self._get_warehouse_usage_vector(warehouse)
+            w_loc_cache[wid] = self._get_warehouse_location(warehouse)
 
-            # Izveido X (ievades vēsture) un Y (nākotnes perioda kopējais patēriņš)
-            for i in range(len(full_series) - seq_len - horizon + 1):
-                window_x = full_series[i : i + seq_len]
-                window_y = sum(full_series[i + seq_len : i + seq_len + horizon])
-                X.append([[val] for val in window_x]) # Pārveido formātā (secība, pazīme)
-                y.append(window_y)
+        p_feature_cache = {}
+        for pid, product in product_cache.items():
+            p_feature_cache[pid] = self._extract_part_features(product)
 
-        if not X:
+        for wid, w_data in data_by_w_p.items():
+            for pid, daily_data in w_data.items():
+                sorted_days = sorted(daily_data.keys())
+                if not sorted_days:
+                    continue
+                
+                start_date = sorted_days[0]
+                end_date = sorted_days[-1]
+                total_days = (end_date - start_date).days + 1
+                
+                full_series = []
+                for d in range(total_days):
+                    current = start_date + timedelta(days=d)
+                    full_series.append(daily_data.get(current, 0))
+
+                seq_len = self.sequence_length
+                horizon = prediction_period
+
+                w_usage = w_usage_cache[wid]
+                w_loc = w_loc_cache[wid]
+                p_feat = p_feature_cache[pid]
+
+                for i in range(len(full_series) - seq_len - horizon + 1):
+                    window_x = full_series[i : i + seq_len]
+                    window_y = sum(full_series[i + seq_len : i + seq_len + horizon])
+                    
+                    X_recent.append([[val] for val in window_x])
+                    X_part.append(p_feat)
+                    X_w_usage.append(w_usage)
+                    X_w_loc.append(w_loc)
+                    y.append(window_y)
+
+        if not X_recent:
             return None, None
 
-        return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
+        return (
+            [
+                np.array(X_recent, dtype=np.float32), 
+                np.array(X_part, dtype=np.float32),
+                np.array(X_w_usage, dtype=np.float32),
+                np.array(X_w_loc, dtype=np.float32)
+            ],
+            np.array(y, dtype=np.float32)
+        )
 
-    # Modeļa apmācības process.
-    # Ja datu ir pietiekami, modelis tiek apmācīts, lai atpazītu likumsakarības vēsturiskajā patēriņā
-    # un spētu prognozēt nepieciešamo krājumu daudzumu nākotnei.
     def train_model(self, epochs=50, prediction_period=30):
         """
-        Veic modeļa apmācību ar uzņēmuma vēsturiskajiem datiem.
+        Trains the Shared Global Backbone.
         """
         X, y = self.fetch_and_preprocess(prediction_period=prediction_period)
-        if X is None or len(X) < 5:
+        if X is None or len(y) < 5:
             return False, "Not enough historical consumption data to train."
 
-        # Ja datu apjoms atļauj, izmanto 20% datu validācijai
-        val_split = 0.2 if len(X) > 20 else 0.0
+        val_split = 0.2 if len(y) > 20 else 0.0
 
         history = self.model.fit(
             X, y,
             validation_split=val_split,
             epochs=epochs,
-            batch_size=min(32, len(X)),
+            batch_size=min(32, len(y)),
             callbacks=self.get_callbacks(),
             verbose=1
         )
         return True, "Training completed successfully."
 
-    # Konkrētas detaļas patēriņa prognozēšana.
-    # Izmantojot pēdējo dienu datus, modelis aprēķina "drošos krājumus" (floor), 
-    # kas nepieciešami, lai izvairītos no deficīta.
-    def predict_for_part(self, product_listing_id, warehouse_id=None, max_history_days=30):
+    def predict_for_part(self, product_listing, warehouse, max_history_days=30):
         """
-        Veic prognozi konkrētai precei, izmantojot pēdējo dienu vēsturi.
+        Veic prognozi konkrētai precei, izmantojot globālo modeli un lokālo realitāti.
         """
         end_date = timezone.now().date()
-        # start_date = end_date - timedelta(days=self.sequence_length - 1)
-        start_date = timezone.now().date() - 1
+        start_date = timezone.now().date() - timedelta(days=self.sequence_length)
         
-        filter_kwargs = {
-            'product_listing_id': product_listing_id,
-            'order_type': 'CONSUME',
-            'status': 'COMPLETED',
-            'created_at__date__gte': start_date
-        }
-        if warehouse_id:
-            filter_kwargs['from_warehouse_id'] = warehouse_id
+        orders = Order.objects.filter(
+            product_listing=product_listing,
+            from_warehouse=warehouse,
+            order_type='CONSUME',
+            status='COMPLETED',
+            created_at__date__gte=start_date
+        )
 
-        orders = Order.objects.filter(**filter_kwargs)
-
-        # Sagatavo pēdējo dienu patēriņa masīvu
         daily_data = {}
         for o in orders:
             d = o.created_at.date()
@@ -207,68 +287,60 @@ class InventoryForecastModel:
             current = start_date + timedelta(days=d)
             recent_seq.append(daily_data.get(current, 0))
 
-        # Pārveido datus neironu tīkla ievades formātā
-        X_input = np.array([[ [val] for val in recent_seq ]], dtype=np.float32)
-        raw_prediction = self.model.predict(X_input, verbose=0)
+        X_recent = np.array([[ [val] for val in recent_seq ]], dtype=np.float32)
+        X_part = np.array([self._extract_part_features(product_listing.product)], dtype=np.float32)
+        X_w_usage = np.array([self._get_warehouse_usage_vector(warehouse)], dtype=np.float32)
+        X_w_loc = np.array([self._get_warehouse_location(warehouse)], dtype=np.float32)
+
+        raw_prediction = self.model.predict([X_recent, X_part, X_w_usage, X_w_loc], verbose=0)
         
-        # Noapaļo rezultātu uz augšu un nodrošina, ka tas nav negatīvs
         floor = max(0, int(np.ceil(raw_prediction[0][0])))
         return floor
+
 
 # INTEGRĀCIJAS UN FONDA FUNKCIJAS
 def predict_floor_for_stock(stock_item, company, historical_data_mock=None):
     """
     Savienojošā funkcija starp Django datu bāzi un AI modeli.
-    Izmanto modeli, lai noteiktu 'drošības līmeņa' krājumu slieksni.
     """
     service_level = float(company.service_level) if company.service_level is not None else 0.95
+    engine = GlobalInventoryModel(sequence_length=14, service_level=service_level)
     
-    engine = InventoryForecastModel(company_id=company.id, sequence_length=14, service_level=service_level)
-    
-    # Ja modelis vēl nav apmācīts, izmanto vienkāršotu heiristiku vai noklusējuma vērtību
     if not os.path.exists(engine.model_path):
         if historical_data_mock is None or historical_data_mock == 0:
             return 5 # Drošais minimums
         else:
             return int(historical_data_mock * service_level)
             
-    # Veic prognozi, ja modelis ir gatavs
     try:
-        prediction = engine.predict_for_part(stock_item.company_product.id, warehouse_id=stock_item.warehouse.id) 
-        # 2. Explicitly update the database fields
+        prediction = engine.predict_for_part(stock_item.company_product, warehouse=stock_item.warehouse) 
         stock_item.ai_stock_floor = prediction
         stock_item.last_ai_update = timezone.now()
-        stock_item.save() # This is the missing link!
+        stock_item.save()
         return prediction
     except Exception as e:
         print("Prediction error:", e)
         return 10
 
-# Globāla funkcija visu uzņēmuma preču prognožu atjaunināšanai.
-# Šī funkcija parasti tiek izpildīta fonā kā periodisks uzdevums, lai uzturētu datus aktuālus.
 def refresh_all_predictions():
     """
     Globāls fonā palaižams uzdevums, kas atjaunina AI prognozētos krājumu sliekšņus visām precēm.
     Paredzēts palaišanai reizi dienā.
     """
-    from .models import Company, WarehouseStock
-    companies = Company.objects.all()
+    from .models import WarehouseStock
     
-    for company in companies:
-        service_level = float(company.service_level) if company.service_level is not None else 0.95
-        engine = InventoryForecastModel(company_id=company.id, sequence_length=14, service_level=service_level)
-        
-        # Apstrādā tikai tos uzņēmumus, kuriem ir apmācīts modelis
-        if not os.path.exists(engine.model_path):
-            continue
+    engine = GlobalInventoryModel(sequence_length=14)
+    
+    if not os.path.exists(engine.model_path):
+        return
 
-        stocks = WarehouseStock.objects.filter(warehouse__company=company)
-        for s in stocks:
-            try:
-                # Prognozē specifisko patēriņa modeli konkrētajai noliktavai
-                floor = engine.predict_for_part(s.company_product.id, warehouse_id=s.warehouse.id)
-                s.ai_stock_floor = floor
-                s.last_ai_update = timezone.now()
-                s.save()
-            except:
-                continue
+    stocks = WarehouseStock.objects.all().select_related('company_product__product', 'warehouse')
+    for s in stocks:
+        try:
+            floor = engine.predict_for_part(s.company_product, warehouse=s.warehouse)
+            s.ai_stock_floor = floor
+            s.last_ai_update = timezone.now()
+            s.save()
+        except Exception as e:
+            print(f"Error updating prediction for stock {s.id}: {e}")
+            continue
