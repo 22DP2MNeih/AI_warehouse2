@@ -70,7 +70,7 @@ class GlobalInventoryModel:
         recent_history_input = Input(shape=(self.sequence_length, self.n_features), name="recent_history")
         part_features_input = Input(shape=(self.part_feature_dim,), name="part_features")
         warehouse_usage_input = Input(shape=(self.max_part_id,), name="warehouse_usage")
-        warehouse_location_input = Input(shape=(2,), name="warehouse_location")
+        warehouse_location_input = Input(shape=(3,), name="warehouse_location")
 
         # Global Brain (Logic Pathway)
         history_lstm = LSTM(32, return_sequences=False)(recent_history_input)
@@ -160,11 +160,19 @@ class GlobalInventoryModel:
 
     def _get_warehouse_location(self, warehouse):
         """
-        Returns normalized (or raw) lat/lon for the warehouse.
+        Returns 3D Cartesian coordinates (X, Y, Z) converted from lat/lon to prevent spherical distortion.
         """
         lat = float(warehouse.latitude) if warehouse.latitude is not None else 0.0
         lon = float(warehouse.longitude) if warehouse.longitude is not None else 0.0
-        return np.array([lat, lon], dtype=np.float32)
+        
+        lat_rad = np.radians(lat)
+        lon_rad = np.radians(lon)
+        
+        x = np.cos(lat_rad) * np.cos(lon_rad)
+        y = np.cos(lat_rad) * np.sin(lon_rad)
+        z = np.sin(lat_rad)
+        
+        return np.array([x, y, z], dtype=np.float32)
 
     def fetch_and_preprocess(self, prediction_period=30):
         """
