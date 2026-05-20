@@ -20,7 +20,7 @@ class GlobalInventoryModel:
         self.sequence_length = sequence_length
         self.n_features = n_features
         self.service_level = max(0.90, min(service_level, 0.999))
-        self.model_path = "global_inventory_model.weights.h5"
+        self.model_path = "global_inventory_model.keras"
         
         # Determine part feature dimension dynamically or use fixed sizes
         # For part feature, we will dummy encode the category. 

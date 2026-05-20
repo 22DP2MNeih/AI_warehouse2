@@ -6,16 +6,25 @@ import api from '../services/api';
 import NavBar from '../components/NavBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DataTable from '../components/DataTable.vue';
+import DynamicForm from '../components/DynamicForm.vue';
 
 // --- State Management ---
 const authStore = useAuthStore();
 const { user, userRole } = storeToRefs(authStore);
 
 const predictions = ref([]);
-const companySettings = ref(null);
+const companySettingsList = ref([]); // List of all company settings (for Admin)
+const companySettings = ref(null);      // Active / selected company settings
+const selectedCompanyId = ref(null);    // Track active company ID for filtering
 const loading = ref(false);
 const training = ref(false);
+const trainingAll = ref(false);
 const error = ref(null);
+
+const formOpen = ref(false);
+const formTitle = ref("");
+const formFields = ref([]);
+const formData = ref({});
 
 const userMeta = computed(() => {
   return {
@@ -23,6 +32,8 @@ const userMeta = computed(() => {
     role: userRole.value
   };
 });
+
+const isAdmin = computed(() => userRole.value === 'ADMIN');
 
 // --- AI Configuration & Filters ---
 const filters = ref({
@@ -50,12 +61,32 @@ const tableCols = [
   { id: 'orderQty', label: 'Pasūtīt' }
 ];
 
-const sidebarConfig = [
-  { id: 'search', type: 'text', label: 'Meklēt detaļu' },
-  { id: 'serviceLevel', type: 'slider', label: 'Servisa līmenis (%)', min: 90.0, step: 0.1, max: 99.5 },
-  { id: 'thresholdTime', type: 'slider', label: 'Sliekšņa laiks (Dienas)', min: 7, max: 90 },
-  { id: 'priority', type: 'slider', label: 'Iegādes biežums', min: 90, step: 0.1, max: 99.5 }
+// Admin configuration table columns
+const adminCompanyCols = [
+  { id: 'name', label: 'Uzņēmums' },
+  { id: 'service_level', label: 'Servisa līmenis' },
+  { id: 'prediction_period', label: 'Prognozes periods (Dienas)' },
+  { id: 'ai_epochs', label: 'Cikli (Epochs)' },
+  { id: 'ai_update_frequency', label: 'Atjaunināšana (Stundas)' }
 ];
+
+const adminRowActions = [
+  { id: 'edit', label: 'Rediģēt', class: 'btn-primary-action' },
+  { id: 'train', label: 'Apmācīt', class: 'btn-train-row' }
+];
+
+const sidebarConfig = [
+  { id: 'search', type: 'text', label: 'Meklēt detaļu' }
+];
+
+// --- Form Blueprints for Admin Editing ---
+const companyEditFields = computed(() => [
+  { id: 'company_name', type: 'text', label: 'Uzņēmuma nosaukums', disabled: true },
+  { id: 'service_level', type: 'number', label: 'Servisa līmenis (%)', required: true, min: 90, max: 99.9, step: 0.1 },
+  { id: 'prediction_period', type: 'number', label: 'Prognozes periods (Dienas)', required: true, min: 7, max: 90 },
+  { id: 'ai_epochs', type: 'number', label: 'Apmācības cikli (Epochs)', required: true, min: 10, max: 1000 },
+  { id: 'ai_update_frequency', type: 'number', label: 'Atjaunināšanas biežums (Stundas)', required: true, min: 1, max: 168 }
+]);
 
 // --- Fetch Settings and Predictions ---
 const fetchSettingsAndPredictions = async () => {
@@ -63,13 +94,33 @@ const fetchSettingsAndPredictions = async () => {
   error.value = null;
   try {
     const settingsRes = await api.getCompanySettings();
-    if (settingsRes.data && settingsRes.data.length > 0) {
-      companySettings.value = settingsRes.data[0];
-      filters.value.serviceLevel = parseFloat(companySettings.value.service_level) * 100;
-      filters.value.thresholdTime = companySettings.value.prediction_period;
+    companySettingsList.value = settingsRes.data;
+
+    if (isAdmin.value) {
+      if (companySettingsList.value.length > 0) {
+        // Default to first company if none is active yet
+        if (!selectedCompanyId.value) {
+          selectedCompanyId.value = companySettingsList.value[0].id;
+        }
+        const active = companySettingsList.value.find(c => c.id === selectedCompanyId.value);
+        if (active) {
+          companySettings.value = active;
+          filters.value.serviceLevel = parseFloat(active.service_level) * 100;
+          filters.value.thresholdTime = active.prediction_period;
+        }
+        await fetchPredictionsOnly(selectedCompanyId.value);
+      } else {
+        predictions.value = [];
+      }
+    } else {
+      if (settingsRes.data && settingsRes.data.length > 0) {
+        companySettings.value = settingsRes.data[0];
+        selectedCompanyId.value = companySettings.value.id;
+        filters.value.serviceLevel = parseFloat(companySettings.value.service_level) * 100;
+        filters.value.thresholdTime = companySettings.value.prediction_period;
+      }
+      await fetchPredictionsOnly(selectedCompanyId.value);
     }
-    
-    await fetchPredictionsOnly();
   } catch (err) {
     console.error(err);
     error.value = "Kļūda ielādējot datus.";
@@ -78,29 +129,45 @@ const fetchSettingsAndPredictions = async () => {
   }
 };
 
-const fetchPredictionsOnly = async () => {
-  const predRes = await api.getAIRecommendations();
-  predictions.value = predRes.data.map(item => ({
-    id: item.stock_id,
-    company_product_id: item.company_product_id,
-    name: item.product_name,
-    vin: item.vin,
-    sku: item.sku || '-',
-    warehouse: item.warehouse || '-',
-    currentStock: item.current_quantity,
-    aiThreshold: item.prediction_floor,
-    cv2: item.cv2 !== undefined ? item.cv2 : 0.15,
-    adi: item.adi !== undefined ? item.adi : 1.2,
-    trend: item.trend || 'Stable',
-    price: item.price || 0.0,
-    lastOrdered: item.last_ordered || 'Nav pasūtīts',
-    orderQty: 0
-  }));
+const fetchPredictionsOnly = async (companyId = null) => {
+  try {
+    const predRes = await api.getAIRecommendations(companyId);
+    predictions.value = predRes.data.map(item => ({
+      id: item.stock_id,
+      company_product_id: item.company_product_id,
+      name: item.product_name,
+      vin: item.vin,
+      sku: item.sku || '-',
+      warehouse: item.warehouse || '-',
+      currentStock: item.current_quantity,
+      aiThreshold: item.prediction_floor,
+      cv2: item.cv2 !== undefined ? item.cv2 : 0.15,
+      adi: item.adi !== undefined ? item.adi : 1.2,
+      trend: item.trend || 'Stable',
+      price: item.price || 0.0,
+      lastOrdered: item.last_ordered || 'Nav pasūtīts',
+      orderQty: 0
+    }));
+  } catch (err) {
+    console.error(err);
+    predictions.value = [];
+  }
 };
 
 onMounted(() => {
   fetchSettingsAndPredictions();
 });
+
+// --- Selection Handler for Admin Companies ---
+const selectCompany = async (company) => {
+  selectedCompanyId.value = company.id;
+  companySettings.value = company;
+  filters.value.serviceLevel = parseFloat(company.service_level) * 100;
+  filters.value.thresholdTime = company.prediction_period;
+  loading.value = true;
+  await fetchPredictionsOnly(company.id);
+  loading.value = false;
+};
 
 // --- Local filtering to avoid DataTable.vue prop.filters bugs ---
 const filteredPredictions = computed(() => {
@@ -131,8 +198,9 @@ const saveSettings = async () => {
     companySettings.value = res.data;
     
     // Refresh predictions with new parameters
-    await fetchPredictionsOnly();
+    await fetchPredictionsOnly(selectedCompanyId.value);
     alert("Iestatījumi saglabāti un prognozes pārrēķinātas!");
+    await fetchSettingsAndPredictions();
   } catch (err) {
     console.error(err);
     alert("Kļūda saglabājot iestatījumus.");
@@ -147,13 +215,71 @@ const trainModel = async () => {
   error.value = null;
   try {
     await api.trainAI(companySettings.value.id);
-    await fetchPredictionsOnly();
-    alert("MI Modelis veiksmīgi pārmācīts un prognozes atjaunotas!");
+    await fetchPredictionsOnly(selectedCompanyId.value);
+    alert(`MI Modelis priekš ${companySettings.value.name} veiksmīgi pārmācīts!`);
   } catch (err) {
     console.error(err);
     alert("Kļūda neironu tīkla apmācībā. Iespējams, nav pietiekami daudz vēsturisko datu (nepieciešami vismaz 5 pabeigti CONSUME pasūtījumi).");
   } finally {
     training.value = false;
+  }
+};
+
+// --- Admin Table Action Handlers ---
+const handleAdminAction = async ({ action, item }) => {
+  if (action === 'edit') {
+    formData.value = {
+      company_name: item.name,
+      service_level: Math.round(parseFloat(item.service_level) * 1000) / 10,
+      prediction_period: item.prediction_period,
+      ai_epochs: item.ai_epochs,
+      ai_update_frequency: item.ai_update_frequency
+    };
+    selectedCompanyId.value = item.id;
+    companySettings.value = item;
+    formTitle.value = `Konfigurēt ${item.name} MI`;
+    formFields.value = companyEditFields.value;
+    formOpen.value = true;
+  } else if (action === 'train') {
+    selectedCompanyId.value = item.id;
+    companySettings.value = item;
+    await trainModel();
+  }
+};
+
+const handleSaveAdminSettings = async (submittedData) => {
+  loading.value = true;
+  try {
+    const patchData = {
+      service_level: (submittedData.service_level / 100).toFixed(3),
+      prediction_period: parseInt(submittedData.prediction_period),
+      ai_epochs: parseInt(submittedData.ai_epochs),
+      ai_update_frequency: parseInt(submittedData.ai_update_frequency)
+    };
+    await api.updateCompanySettings(selectedCompanyId.value, patchData);
+    alert("Uzņēmuma MI parametri veiksmīgi atjaunināti!");
+    formOpen.value = false;
+    await fetchSettingsAndPredictions();
+  } catch (err) {
+    console.error(err);
+    alert("Neizdevās saglabāt parametrus.");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const trainAllCompaniesGlobal = async () => {
+  trainingAll.value = true;
+  error.value = null;
+  try {
+    const res = await api.trainAllCompanies();
+    alert(res.data?.status || "Visu uzņēmumu neironu tīkli veiksmīgi pārmācīti!");
+    await fetchSettingsAndPredictions();
+  } catch (err) {
+    console.error(err);
+    alert("Kļūda globālajā apmācībā.");
+  } finally {
+    trainingAll.value = false;
   }
 };
 
@@ -215,7 +341,7 @@ const handleCsvExport = () => {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `MI_prognozes_${new Date().toISOString().slice(0,10)}.csv`);
+  link.setAttribute("download", `MI_prognozes_${companySettings.value?.name || 'uznemums'}_${new Date().toISOString().slice(0,10)}.csv`);
   document.body.appendChild(link);
   
   link.click();
@@ -228,54 +354,132 @@ const handleCsvExport = () => {
     <NavBar :userMeta="userMeta" activeTab="ai_predictions" />
     
     <div class="content-body">
-      <SideBar v-model="filters" :config="sidebarConfig" />
+      <SideBar v-model="filters" :config="sidebarConfig" title="Meklēšana" />
 
       <main class="main-content">
-        <div class="view-header">
-          <div class="header-titles">
-            <h1 class="view-title">MI Inventāra Prognozes</h1>
-            <p class="view-subtitle">Automātiski aprēķinātie krājumu sliekšņi optimālai darbībai.</p>
+        <template v-if="!formOpen">
+          <div class="view-header">
+            <div class="header-titles">
+              <h1 class="view-title">
+                {{ isAdmin ? 'MI Sistēmas Administrēšana' : 'MI Inventāra Prognozes' }}
+              </h1>
+              <p class="view-subtitle">
+                {{ isAdmin ? 'Pārvaldiet visu uzņēmumu neironu tīklu parametrus un apmācību.' : 'Automātiski aprēķinātie krājumu sliekšņi optimālai darbībai.' }}
+              </p>
+            </div>
+            
+            <div class="view-actions">
+              <!-- Admin Global Retraining Trigger -->
+              <button 
+                v-if="isAdmin" 
+                class="btn-train-all" 
+                @click="trainAllCompaniesGlobal" 
+                :disabled="trainingAll"
+              >
+                {{ trainingAll ? 'Apmāca visus...' : 'Apmācīt visus uzņēmumus' }}
+              </button>
+
+              <!-- Normal User Actions -->
+              <template v-else>
+                <button class="btn-save" @click="saveSettings" :disabled="loading">
+                  {{ loading ? 'Saglabā...' : 'Saglabāt Iestatījumus' }}
+                </button>
+                <button class="btn-train" @click="trainModel" :disabled="training">
+                  {{ training ? 'Apmāca...' : 'Apmācīt MI' }}
+                </button>
+              </template>
+            </div>
           </div>
-          <div class="view-actions">
-            <button class="btn-save" @click="saveSettings" :disabled="loading">
-              {{ loading ? 'Saglabā...' : 'Saglabāt Iestatījumus' }}
-            </button>
-            <button class="btn-train" @click="trainModel" :disabled="training">
-              {{ training ? 'Apmāca...' : 'Apmācīt MI' }}
-            </button>
+
+          <!-- ADMIN Area: Big Table of Companies -->
+          <div v-if="isAdmin" class="section-container">
+            <h2 class="section-title">Uzņēmumu MI Konfigurācija</h2>
+            <DataTable 
+              :columns="adminCompanyCols"
+              :data="companySettingsList"
+              :rowActions="adminRowActions"
+              @action="handleAdminAction"
+            >
+              <!-- Highlight active selected row & render custom cells -->
+              <template #row="{ item }">
+                <tr 
+                  :class="['company-row', selectedCompanyId === item.id ? 'active-selected-row' : '']"
+                  @click="selectCompany(item)"
+                >
+                  <td>
+                    <div class="company-name-cell">
+                      <span class="selection-indicator"></span>
+                      <strong>{{ item.name }}</strong>
+                    </div>
+                  </td>
+                  <td>{{ Math.round(parseFloat(item.service_level) * 1000) / 10 }}%</td>
+                  <td>{{ item.prediction_period }} dienas</td>
+                  <td>{{ item.ai_epochs }}</td>
+                  <td>Katras {{ item.ai_update_frequency }} stundas</td>
+                  
+                  <!-- Actions Column mapping -->
+                  <td class="action-cell">
+                    <button class="btn-primary-action btn-sm" @click.stop="handleAdminAction({ action: 'edit', item })">
+                      Rediģēt
+                    </button>
+                    <button class="btn-train-row btn-sm" @click.stop="handleAdminAction({ action: 'train', item })">
+                      Apmācīt
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </DataTable>
           </div>
+
+          <!-- Main Predictions Table -->
+          <div class="section-container">
+            <h2 class="section-title">
+              {{ isAdmin ? `Detaļu prognozes priekš: ${companySettings?.name || '-'}` : 'Krājumu analīze un sliekšņi' }}
+            </h2>
+            
+            <DataTable 
+              :columns="tableCols"
+              :data="filteredPredictions"
+              :globalActions="[
+                { id: 'order', label: 'Veikt pasūtījumu' },
+                { id: 'csv', label: 'Eksportēt datus CSV' }
+              ]"
+              @globalAction="(id) => id === 'order' ? handleBulkOrder() : (id === 'csv' ? handleCsvExport() : null)"
+            >
+              <template #col-currentStock="{ value, item }">
+                <span :class="['stock-display', value < item.aiThreshold ? 'critical' : 'stable']">
+                  {{ value }}
+                </span>
+              </template>
+
+              <template #col-trend="{ value }">
+                <span :class="['trend-icon', value.toLowerCase()]">
+                  {{ value === 'Rising' ? '↗' : value === 'Falling' ? '↘' : '→' }} {{ value }}
+                </span>
+              </template>
+
+              <template #col-orderQty="{ item }">
+                <input 
+                  type="number" 
+                  v-model.number="item.orderQty" 
+                  class="order-input"
+                  min="0"
+                />
+              </template>
+            </DataTable>
+          </div>
+        </template>
+
+        <!-- Admin Editing form Container -->
+        <div v-else class="form-container">
+          <DynamicForm 
+            :title="formTitle"
+            :fields="formFields"
+            :initialData="formData"
+            @submit="handleSaveAdminSettings"
+            @cancel="formOpen = false"
+          />
         </div>
-
-        <DataTable 
-          :columns="tableCols"
-          :data="filteredPredictions"
-          :globalActions="[
-            { id: 'order', label: 'Veikt pasūtījumu' },
-            { id: 'csv', label: 'Eksportēt datus CSV' }
-          ]"
-          @globalAction="(id) => id === 'order' ? handleBulkOrder() : (id === 'csv' ? handleCsvExport() : null)"
-        >
-          <template #col-currentStock="{ value, item }">
-            <span :class="['stock-display', value < item.aiThreshold ? 'critical' : 'stable']">
-              {{ value }}
-            </span>
-          </template>
-
-          <template #col-trend="{ value }">
-            <span :class="['trend-icon', value.toLowerCase()]">
-              {{ value === 'Rising' ? '↗' : value === 'Falling' ? '↘' : '→' }} {{ value }}
-            </span>
-          </template>
-
-          <template #col-orderQty="{ item }">
-            <input 
-              type="number" 
-              v-model.number="item.orderQty" 
-              class="order-input"
-              min="0"
-            />
-          </template>
-        </DataTable>
       </main>
     </div>
   </div>
@@ -364,6 +568,99 @@ const handleCsvExport = () => {
   transform: translateY(-1px);
 }
 
+.btn-train-all {
+  background-color: #6366f1;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.15), 0 2px 4px -1px rgba(99, 102, 241, 0.08);
+}
+.btn-train-all:hover {
+  background-color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.section-container {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+}
+
+.company-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.company-row:hover {
+  background-color: #f8fafc;
+}
+
+.active-selected-row {
+  background-color: #eff6ff !important;
+}
+
+.company-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selection-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: transparent;
+}
+.active-selected-row .selection-indicator {
+  background-color: #2563eb;
+  box-shadow: 0 0 8px #2563eb;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+
+.btn-primary-action {
+  background: #2563eb;
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary-action:hover {
+  background: #1d4ed8;
+}
+
+.btn-train-row {
+  background: #10b981;
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-train-row:hover {
+  background: #059669;
+}
+
 .stock-display {
   font-weight: 700;
   padding: 2px 6px;
@@ -400,5 +697,12 @@ const handleCsvExport = () => {
 .order-input:focus {
   border-color: #2563eb;
   background: #eff6ff;
+}
+
+.form-container {
+  background: white;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
 }
 </style>

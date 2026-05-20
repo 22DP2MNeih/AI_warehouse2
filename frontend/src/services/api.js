@@ -177,8 +177,9 @@ export default {
   updateCompanySettings(companyId, data) {
     return apiClient.patch(`/company-settings/${companyId}/`, data);
   },
-  getAIRecommendations() {
-    return apiClient.get('/stock/ai_recommendations/');
+  getAIRecommendations(companyId = null) {
+    const params = companyId ? { company: companyId } : {};
+    return apiClient.get('/stock/ai_recommendations/', { params });
   },
   trainAI(companyId) {
     return apiClient.post(`/company-settings/${companyId}/train/`);

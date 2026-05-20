@@ -75,7 +75,8 @@ class CompanySettingsViewSet(viewsets.ModelViewSet):
         from .ai_model import InventoryForecastModel
         
         company = self.get_object()
-        if request.user.role != 'ADMIN' and request.user.company != company:
+        # if request.user.role != 'ADMIN' and request.user.company != company:
+        if request.user.company != company:
             return Response({"error": "Unauthorized"}, status=403)
 
         sl = float(company.service_level) if company.service_level else 0.95
@@ -83,6 +84,7 @@ class CompanySettingsViewSet(viewsets.ModelViewSet):
             company_id=company.id, 
             service_level=sl
         )
+        
         
         predict_period = company.prediction_period or 30
         epochs = company.ai_epochs or 50
@@ -177,7 +179,12 @@ class WarehouseStockViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return WarehouseStock.objects.none()
         
-        # Admins or managers might see more, but for now filtering by company
+        if user.role == 'ADMIN':
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                return WarehouseStock.objects.filter(warehouse__company_id=company_id)
+            return WarehouseStock.objects.all()
+            
         if user.company:
             return WarehouseStock.objects.filter(warehouse__company=user.company)
         return WarehouseStock.objects.none()
@@ -206,6 +213,13 @@ class WarehouseStockViewSet(viewsets.ModelViewSet):
         
         stocks = self.get_queryset().select_related('company_product__product')
         company = user.company
+        
+        if user.role == 'ADMIN':
+            company_id = request.query_params.get('company')
+            if company_id:
+                company = Company.objects.filter(id=company_id).first()
+            elif stocks.exists():
+                company = stocks.first().warehouse.company
         
         recommendations = []
         for s in stocks:
