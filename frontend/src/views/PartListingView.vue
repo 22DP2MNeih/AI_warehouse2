@@ -155,13 +155,6 @@ const processedData = computed(() => {
 });
 
 // --- Event Handlers ---
-const openAddPartForm = () => {
-  actionType.value = "add_part";
-  formTitle.value = "Pievienot jaunu detaļu tirgum";
-  formFields.value = addPartFields;
-  formData.value = {};
-  formOpen.value = true;
-};
 
 const handleAction = ({ action, item }) => {
   console.log("action called:", action, item);
@@ -336,9 +329,6 @@ const closeForm = () => {
               <h1 class="view-title">Detaļu saraksts</h1>
               <p class="view-subtitle">Pērciet detaļas no citiem uzņēmumiem</p>
             </div>
-            <div class="view-actions">
-              <button class="btn-add" @click="openAddPartForm">+ Pievienot jaunu detaļu</button>
-            </div>
           </div>
 
           <DataTable 
@@ -372,7 +362,7 @@ const closeForm = () => {
             <svg class="stripe-logo" viewBox="0 0 40 16" width="50" height="20">
               <path d="M40 9.2c0-2.4-1.2-3.8-3.5-3.8-2.2 0-3.6 1.4-3.6 3.8 0 2.6 1.4 3.9 3.7 3.9 2.2 0 3.4-1.1 3.4-1.1l-.6-1.1s-1 .8-2.6.8c-1.3 0-2.1-.6-2.2-1.6h5.7c.1-.2.1-.7.1-.9zm-5.7-.9c0-1.1.7-1.8 1.8-1.8 1.1 0 1.7.7 1.7 1.8h-3.5zm-5.8 4.7c1.3 0 2.2-.6 2.6-1.1v.9h1.7V2.3h-1.7v3.3c-.4-.5-1.3-1.1-2.6-1.1-2.2 0-3.8 1.6-3.8 4.3 0 2.6 1.6 4.2 3.8 4.2zm.6-1.5c-1.3 0-2.1-1-2.1-2.8 0-1.7.8-2.8 2.1-2.8 1.3 0 2.1 1 2.1 2.8-.1 1.8-.9 2.8-2.1 2.8zm-9.3.4h1.7V5.6h-1.7v6.3zm0-7.7h1.7V2.9h-1.7v1.4zm-1.8 1.1c-.5-.6-1.4-1.1-2.5-1.1-2.1 0-3.8 1.6-3.8 4.3 0 2.7 1.6 4.3 3.8 4.3 1.1 0 2-.5 2.5-1v.9h1.7V2.3h-1.7v3.4zm-.6 4.4c-1.3 0-2.1-1-2.1-2.8 0-1.7.8-2.8 2.1-2.8 1.3 0 2.1 1 2.1 2.8 0 1.8-.8 2.8-2.1 2.8zm-9-5.1c-.8-.4-1.7-.6-2.5-.6-1.4 0-2.2.6-2.2 1.5 0 .9.8 1.2 2.4 1.6 1.9.4 3.2.9 3.2 2.8 0 2-1.8 3-3.9 3-1.2 0-2.4-.3-3.2-.8l.6-1.3c.8.5 1.8.8 2.7.8 1.3 0 2.1-.5 2.1-1.4 0-.9-.7-1.2-2.4-1.6-1.9-.4-3.1-1-3.1-2.7 0-1.8 1.6-2.9 3.7-2.9 1 0 1.9.2 2.7.6l-.7 1.3z" fill="#635bff"/>
             </svg>
-            <span class="secure-label">🛡️ Drošs maksājums</span>
+            <span class="secure-label">Drošs maksājums</span>
           </div>
           <h2 class="payment-title">Maksājuma Apstiprinājums</h2>
         </div>
@@ -397,7 +387,7 @@ const closeForm = () => {
         <form @submit.prevent="handlePaymentSubmit" class="stripe-form">
           <div v-if="loadingPayment" class="stripe-loading">
             <div class="payment-spinner"></div>
-            <p>Meklē Stripe Elements...</p>
+            <p>Meklē Stripe Elementus...</p>
           </div>
           
           <div v-else>
@@ -406,7 +396,7 @@ const closeForm = () => {
             
             <!-- High-Fidelity Stripe Element Simulator -->
             <div v-show="isMockPayment" class="stripe-simulator-wrapper">
-              <label class="input-label">Kartes informācija (Testa režīms)</label>
+              <label class="input-label">Kartes informācija</label>
               <div class="card-input-container">
                 <div class="card-number-wrapper">
                   <input 
@@ -551,7 +541,7 @@ const closeForm = () => {
 
 .main-content {
   flex: 1;
-  padding: 2rem 3rem;
+  padding: 2rem 0rem 0rem 3rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;

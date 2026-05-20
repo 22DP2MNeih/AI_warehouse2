@@ -80,6 +80,12 @@ const updateFilter = (id, value) => {
 </template>
 
 <style scoped>
+/* Ensure border-box sizing is applied within the sidebar context */
+#sidebar,
+#sidebar * {
+  box-sizing: border-box;
+}
+
 /* Desktop Layout Base Layout Configurations */
 #sidebar {
   width: 300px;
@@ -88,8 +94,24 @@ const updateFilter = (id, value) => {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  
+  /* Vertical scrolling allowed, Horizontal scrolling explicitly banned */
   overflow-y: auto;
+  overflow-x: hidden; 
+  
   transition: transform 0.3s ease;
+}
+
+/* OPTIONAL: Hides the default ugly scrollbar for a cleaner look */
+#sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+#sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+#sidebar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
 }
 
 .sidebar-header-wrapper {
@@ -99,6 +121,7 @@ const updateFilter = (id, value) => {
   border-bottom: 2px solid #eff6ff;
   margin-bottom: 16px;
   padding-right: 16px;
+  width: 100%;
 }
 
 .sidebar-section-header {
@@ -109,8 +132,21 @@ const updateFilter = (id, value) => {
   padding: 24px 20px 8px 20px;
 }
 
+/* Isolates the inner area and breaks down sub-components */
+.filter-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .field-group {
   padding: 0 20px 16px 20px;
+  width: 100%;
+}
+
+/* Force deeply nested input/child components to stay in bounds */
+.field-group > * {
+  max-width: 100% !important;
 }
 
 .field-label {
@@ -177,6 +213,8 @@ const updateFilter = (id, value) => {
     top: 0;
     left: 0;
     height: 100vh;
+    /* Keeps the sidebar mobile drawer contained nicely */
+    max-width: 85vw; 
     z-index: 50;
     border-right: none;
     box-shadow: 4px 0 25px -5px rgba(0, 0, 0, 0.1);

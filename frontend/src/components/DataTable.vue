@@ -148,6 +148,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 <style scoped>
 .table-container { 
   width: 100%; 
+  overflow-x: hidden;
 }
 
 /* Drošības slānis pret ekstremālu ekrāna samazināšanu */
@@ -201,6 +202,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 .row-item td {
   padding: 22px 0;
   font-size: 0.95rem;
+  border-bottom: 1px solid #f1f5f9; /* Pievienots, lai saglabātu vizuālās rindas pie border-collapse: separate */
 }
 
 /* Jauns wrapper elements, kas notur relatīvo pozicionēšanu korekti */
@@ -208,19 +210,6 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   position: relative;
   width: 100%;
   height: 100%;
-}
-
-/* Salabots dekoratīvais akcents, lai tas neizpūstu tabulu */
-.accent-marker {
-  position: absolute;
-  left: 0;
-  bottom: -22px; /* Nobīdīts uz leju līdz pat šūnas robežai */
-  width: 40px;   /* Fiksēts vai ierobežots platums nevis 100%, lai nebojātu responsivitāti */
-  height: 4px;
-  background-color: #2563eb;
-  opacity: 0.4;
-  border-radius: 0 4px 4px 0;
-  pointer-events: none;
 }
 
 .btn-primary-action {
