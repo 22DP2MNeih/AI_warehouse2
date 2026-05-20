@@ -20,20 +20,17 @@ const handleSort = (fieldId) => {
   
   if (existingIdx === -1) {
     sortStack.value.push({ fieldId, direction: 'asc' });
-
   } else {
     const current = sortStack.value[existingIdx];
-
     if (current.direction === 'asc') {
       current.direction = 'desc';
-
     } else {
       sortStack.value.splice(existingIdx, 1);
     }
   }
 };
 
-// Datu filtrēšana
+// Datu filtrēšana un kārtošana
 const processedData = computed(() => {
   let result = [...props.data];
 
@@ -42,17 +39,13 @@ const processedData = computed(() => {
       const filterVal = props.filters[key];
       if (!filterVal) return true;
       
-      // Ensure the item has the key and it's not null/undefined before stringifying
       const itemValue = item[key] != null ? String(item[key]) : '';
       return itemValue.toLowerCase().includes(String(filterVal).toLowerCase());
     });
   });
 
-  // Pati kārtošana
   if (sortStack.value.length > 0) {
     result.sort((a, b) => {
-
-      // Katrai kārtošanas secībai
       for (let rule of sortStack.value) {
         const valA = a[rule.fieldId];
         const valB = b[rule.fieldId];
@@ -91,57 +84,64 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
       </div>
     </div>
 
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th 
-            v-for="col in columns" 
-            :key="col.id" 
-            class="table-header"
-            @click="handleSort(col.id)"
-          >
-            {{ col.label }}
-            <span v-if="getSortInfo(col.id)" class="sort-indicator">
-              {{ getSortInfo(col.id).direction === 'asc' ? ' ↑' : ' ↓' }}
-            </span>
-            <span v-if="getSortPriority(col.id) > 0" class="priority-badge">
-              {{ getSortPriority(col.id) }}
-            </span>
-          </th>
-          <th v-if="rowActions.length" class="table-header">Darbība</th>
-        </tr>
-      </thead>
-      
-      <tbody>
-        <tr v-for="(item, rowIdx) in processedData" :key="rowIdx" class="row-item">
-          <td v-for="(col, colIdx) in columns" :key="col.id">
-            <div v-if="colIdx === 0" class="accent-marker"></div>
-            
-            <slot :name="`col-${col.id}`" :value="item[col.id]" :item="item">
-              <template v-if="item[col.id] !== undefined && item[col.id] !== null">
-                {{ col.id === 'price' ? `${Number(item[col.id]).toFixed(2)} €` : item[col.id] }}
-              </template>
-              <template v-else>
-                -
-              </template>
-            </slot>
-          </td>
+    <!-- Pievienots wrapper elastīgai izmēru maiņai, lai novērstu pārlūka izlēcienus -->
+    <div class="responsive-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th 
+              v-for="col in columns" 
+              :key="col.id" 
+              class="table-header"
+              @click="handleSort(col.id)"
+            >
+              {{ col.label }}
+              <span v-if="getSortInfo(col.id)" class="sort-indicator">
+                {{ getSortInfo(col.id).direction === 'asc' ? ' ↑' : ' ↓' }}
+              </span>
+              <span v-if="getSortPriority(col.id) > 0" class="priority-badge">
+                {{ getSortPriority(col.id) }}
+              </span>
+            </th>
+            <th v-if="rowActions.length" class="table-header">Darbība</th>
+          </tr>
+        </thead>
+        
+        <tbody>
+          <!-- Ieteicams izmantot unikālu ID atslēgai (piem. item.id), ja pieejams -->
+          <tr v-for="(item, rowIdx) in processedData" :key="item.id || rowIdx" class="row-item">
+            <td v-for="(col, colIdx) in columns" :key="col.id">
+              <!-- cell-wrapper ierobežo absolūto elementu atrašanās vietu -->
+              <div class="cell-wrapper">
+                <div v-if="colIdx === 0" class="accent-marker"></div>
+                
+                <slot :name="`col-${col.id}`" :value="item[col.id]" :item="item">
+                  <template v-if="item[col.id] !== undefined && item[col.id] !== null">
+                    {{ col.id === 'price' ? `${Number(item[col.id]).toFixed(2)} €` : item[col.id] }}
+                  </template>
+                  <template v-else>
+                    -
+                  </template>
+                </slot>
+              </div>
+            </td>
 
-          <td v-if="rowActions.length">
-            <div class="action-cell">
-              <button 
-                v-for="action in rowActions" 
-                :key="action.id"
-                :class="['btn-action', action.class || 'btn-primary-action']"
-                @click="emit('action', { action: action.id, item })"
-              >
-                {{ action.label }}
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            <td v-if="rowActions.length">
+              <div class="action-cell">
+                <button 
+                  v-for="action in rowActions" 
+                  :key="action.id"
+                  :class="['btn-action', action.class || 'btn-primary-action']"
+                  @click="emit('action', { action: action.id, item })"
+                >
+                  {{ action.label }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -150,16 +150,26 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   width: 100%; 
 }
 
+/* Drošības slānis pret ekstremālu ekrāna samazināšanu */
+.responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .table-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  gap: 1rem;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  /* Nodrošina stingrāku tabulas izmēru aprēķinu pārlūkos */
+  table-layout: auto;
 }
 
 .table-header {
@@ -173,6 +183,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   cursor: pointer;
   user-select: none;
   transition: color 0.2s;
+  white-space: nowrap;
 }
 
 .table-header:hover { 
@@ -180,29 +191,36 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 }
 
 .row-item {
- transition: background-color 0.2s; 
+  transition: background-color 0.2s; 
 }
 
 .row-item:hover {
- background-color: #eff6ff;
+  background-color: #eff6ff;
 }
 
 .row-item td {
   padding: 22px 0;
   font-size: 0.95rem;
-  position: relative;
 }
 
+/* Jauns wrapper elements, kas notur relatīvo pozicionēšanu korekti */
+.cell-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Salabots dekoratīvais akcents, lai tas neizpūstu tabulu */
 .accent-marker {
   position: absolute;
-  left: 30%;
-  top: 100%;
-  transform: translateY(-50%);
-  width: 100%;
+  left: 0;
+  bottom: -22px; /* Nobīdīts uz leju līdz pat šūnas robežai */
+  width: 40px;   /* Fiksēts vai ierobežots platums nevis 100%, lai nebojātu responsivitāti */
   height: 4px;
   background-color: #2563eb;
   opacity: 0.4;
   border-radius: 0 4px 4px 0;
+  pointer-events: none;
 }
 
 .btn-primary-action {
@@ -239,6 +257,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   padding: 4px 12px;
   border-radius: 6px;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .sort-indicator {
@@ -258,5 +277,6 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 .action-cell {
   display: flex;
   gap: 8px;
+  flex-wrap: nowrap;
 }
 </style>
