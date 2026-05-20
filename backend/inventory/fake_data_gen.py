@@ -1,18 +1,20 @@
 import random
 from datetime import datetime, timedelta
 
-def generate_ai_training_data(num_orders):
+def generate_ai_training_data(num_orders, days_back):
     """
     Generates SQL INSERT statements for inventory_order table for AI training data.
     """
     sql_statements = []
     
     # Define fixed values as per your request
-    ordered_by_id = 2
-    from_warehouse_id = 3
+    ordered_by_id = 1
+    from_warehouse_id = 2
     order_type = "CONSUME"
     status = "COMPLETED"
     is_historical = 1
+
+    now = datetime.now()
 
     for i in range(num_orders):
         # Calculate product_listing_id: 10 to 250 step 10
@@ -21,8 +23,13 @@ def generate_ai_training_data(num_orders):
         # Generate a slightly varied quantity
         quantity = random.randint(1, 500)
         
-        # Generate current timestamp
-        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Calculate a random time delta between now and 'days_back' ago
+        # We calculate a random number of seconds to subtract from 'now'
+        time_delta_seconds = random.randint(0, days_back * 24 * 60 * 60)
+        random_time = now - timedelta(seconds=time_delta_seconds)
+        
+        # Format the timestamp
+        created_at = random_time.strftime('%Y-%m-%d %H:%M:%S')
         
         # Construct the INSERT statement
         sql = (
@@ -36,6 +43,6 @@ def generate_ai_training_data(num_orders):
 # --- Generation ---
 # Let's generate 100 orders for this example
 num_orders_to_generate = 100
-generated_sql = generate_ai_training_data(num_orders_to_generate)
+generated_sql = generate_ai_training_data(num_orders_to_generate, 30)
 
 print(generated_sql)
