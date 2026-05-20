@@ -71,20 +71,17 @@ class CompanySettingsViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def train(self, request, pk=None):
-        """Manually trigger the AI training process for a specific company."""
-        from .ai_model import InventoryForecastModel
+        """Manually trigger the AI training process for a specific company (trains global model on all anonymous data)."""
+        from .ai_model import GlobalInventoryModel
         
         company = self.get_object()
-        # if request.user.role != 'ADMIN' and request.user.company != company:
         if request.user.company != company:
             return Response({"error": "Unauthorized"}, status=403)
 
         sl = float(company.service_level) if company.service_level else 0.95
-        engine = InventoryForecastModel(
-            company_id=company.id, 
+        engine = GlobalInventoryModel(
             service_level=sl
         )
-        
         
         predict_period = company.prediction_period or 30
         epochs = company.ai_epochs or 50
@@ -92,35 +89,36 @@ class CompanySettingsViewSet(viewsets.ModelViewSet):
         success, msg = engine.train_model(epochs=epochs, prediction_period=predict_period)
         
         if success:
-            return Response({"status": f"AI Engine successfully retrained for {company.name}."})
+            from .ai_model import refresh_all_predictions
+            refresh_all_predictions()
+            return Response({"status": f"AI Engine successfully retrained globally using anonymous data, initiated by {company.name}. All stock floors refreshed."})
         else:
             return Response({"error": f"Training skipped: {msg}"}, status=400)
 
     @action(detail=False, methods=['post'])
     def train_all(self, request):
-        """Trigger training for EVERY company (Admin only)."""
+        """Trigger training globally (Admin only)."""
         if request.user.role != 'ADMIN':
             return Response({"error": "Forbidden"}, status=403)
         
-        from .ai_model import InventoryForecastModel
-        companies = self.get_queryset()
+        from .ai_model import GlobalInventoryModel
         
-        success_count = 0
-        for company in companies:
-            sl = float(company.service_level) if company.service_level else 0.95
-            engine = InventoryForecastModel(company_id=company.id, service_level=sl)
-            success, _ = engine.train_model(
-                epochs=company.ai_epochs or 50, 
-                prediction_period=company.prediction_period or 30
-            )
-            if success:
-                success_count += 1
+        company = self.get_queryset().first()
+        epochs = company.ai_epochs if (company and company.ai_epochs) else 50
+        predict_period = company.prediction_period if (company and company.prediction_period) else 30
         
-        # New: After training, run a global prediction update for all stock floors
-        from .ai_model import refresh_all_predictions
-        refresh_all_predictions()
-                
-        return Response({"status": f"Global training cycle completed. {success_count}/{companies.count()} models updated. All stock floors refreshed."})
+        engine = GlobalInventoryModel()
+        success, msg = engine.train_model(
+            epochs=epochs, 
+            prediction_period=predict_period
+        )
+        
+        if success:
+            from .ai_model import refresh_all_predictions
+            refresh_all_predictions()
+            return Response({"status": "Global training cycle completed successfully. All stock floors refreshed."})
+        else:
+            return Response({"error": f"Training failed: {msg}"}, status=400)
 
     # PATCH /api/company-settings/update_settings/
     # OR you can override the 'patch' method for the base URL

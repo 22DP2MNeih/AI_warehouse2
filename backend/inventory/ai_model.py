@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model, Model
@@ -7,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, Min
 from .models import Order, Company, Warehouse, Product, CompanyProduct, WarehouseStock
 
 class GlobalInventoryModel:
@@ -16,14 +17,18 @@ class GlobalInventoryModel:
     Uses a Shared Global Backbone for universal mechanics and a specific Gating Pathway 
     driven by warehouse inventory signatures and locations to filter demand logic.
     """
-    def __init__(self, sequence_length=14, n_features=1, service_level=0.95):
+    def __init__(self, sequence_length=7, n_features=1, service_level=0.95):
         self.sequence_length = sequence_length
         self.n_features = n_features
         self.service_level = max(0.90, min(service_level, 0.999))
-        self.model_path = "global_inventory_model.keras"
+        self.model_path = "global_inventory_model.weights.h5"
+        self.metadata_path = "global_inventory_model.metadata.json"
         
-        # Determine part feature dimension dynamically or use fixed sizes
-        # For part feature, we will dummy encode the category. 
+        # Load or set default trained horizon
+        self.trained_horizon = 30
+        self._load_metadata()
+        
+        # Determine part feature dimension dynamically
         self.part_feature_dim = 16 
         
         # Max Product ID for warehouse usage vector size
@@ -32,6 +37,23 @@ class GlobalInventoryModel:
         
         self.model = self._build_model()
         self._load_weights_if_exist()
+
+    def _load_metadata(self):
+        if os.path.exists(self.metadata_path):
+            try:
+                with open(self.metadata_path, 'r') as f:
+                    meta = json.load(f)
+                    self.trained_horizon = meta.get("trained_horizon", 30)
+            except Exception as e:
+                print(f"Could not load global model metadata: {e}")
+
+    def _save_metadata(self, horizon):
+        try:
+            with open(self.metadata_path, 'w') as f:
+                json.dump({"trained_horizon": horizon}, f)
+            self.trained_horizon = horizon
+        except Exception as e:
+            print(f"Could not save global model metadata: {e}")
 
     def pinball_loss(self, y_true, y_pred):
         """
@@ -157,6 +179,16 @@ class GlobalInventoryModel:
         if not orders.exists():
             return None, None
 
+        # Determine start/end date globally to construct daily span
+        agg = orders.aggregate(min_date=Min('created_at'), max_date=Max('created_at'))
+        start_date = agg['min_date'].date()
+        end_date = agg['max_date'].date()
+        db_span = (end_date - start_date).days + 1
+
+        # Determine train horizon dynamically to fit the db time-span perfectly
+        self.train_horizon = min(prediction_period, max(3, db_span - self.sequence_length - 2))
+        self._save_metadata(self.train_horizon)
+
         # Group by Warehouse -> Product -> Date
         data_by_w_p = {}
         warehouse_cache = {}
@@ -199,25 +231,18 @@ class GlobalInventoryModel:
 
         for wid, w_data in data_by_w_p.items():
             for pid, daily_data in w_data.items():
-                sorted_days = sorted(daily_data.keys())
-                if not sorted_days:
-                    continue
-                
-                start_date = sorted_days[0]
-                end_date = sorted_days[-1]
-                total_days = (end_date - start_date).days + 1
-                
+                w_usage = w_usage_cache[wid]
+                w_loc = w_loc_cache[wid]
+                p_feat = p_feature_cache[pid]
+
+                # Generate full series from start_date to end_date globally
                 full_series = []
-                for d in range(total_days):
+                for d in range(db_span):
                     current = start_date + timedelta(days=d)
                     full_series.append(daily_data.get(current, 0))
 
                 seq_len = self.sequence_length
-                horizon = prediction_period
-
-                w_usage = w_usage_cache[wid]
-                w_loc = w_loc_cache[wid]
-                p_feat = p_feature_cache[pid]
+                horizon = self.train_horizon
 
                 for i in range(len(full_series) - seq_len - horizon + 1):
                     window_x = full_series[i : i + seq_len]
@@ -294,7 +319,9 @@ class GlobalInventoryModel:
 
         raw_prediction = self.model.predict([X_recent, X_part, X_w_usage, X_w_loc], verbose=0)
         
-        floor = max(0, int(np.ceil(raw_prediction[0][0])))
+        # Scale prediction up from trained_horizon to 30 days dynamically!
+        scale_factor = 30 / self.trained_horizon
+        floor = max(0, int(np.ceil(raw_prediction[0][0] * scale_factor)))
         return floor
 
 
@@ -304,7 +331,7 @@ def predict_floor_for_stock(stock_item, company, historical_data_mock=None):
     Savienojošā funkcija starp Django datu bāzi un AI modeli.
     """
     service_level = float(company.service_level) if company.service_level is not None else 0.95
-    engine = GlobalInventoryModel(sequence_length=14, service_level=service_level)
+    engine = GlobalInventoryModel(sequence_length=7, service_level=service_level)
     
     if not os.path.exists(engine.model_path):
         if historical_data_mock is None or historical_data_mock == 0:
@@ -329,7 +356,7 @@ def refresh_all_predictions():
     """
     from .models import WarehouseStock
     
-    engine = GlobalInventoryModel(sequence_length=14)
+    engine = GlobalInventoryModel(sequence_length=7)
     
     if not os.path.exists(engine.model_path):
         return
