@@ -333,8 +333,8 @@ const closeForm = () => {
         <template v-if="!formOpen">
           <div class="view-header">
             <div class="header-titles">
-              <h1 class="view-title">Detaļu Noliktava</h1>
-              <p class="view-subtitle">Pārvaldiet krājumus un pasūtījumus</p>
+              <h1 class="view-title">Detaļu saraksts</h1>
+              <p class="view-subtitle">Pērciet detaļas no citiem uzņēmumiem</p>
             </div>
             <div class="view-actions">
               <button class="btn-add" @click="openAddPartForm">+ Pievienot jaunu detaļu</button>

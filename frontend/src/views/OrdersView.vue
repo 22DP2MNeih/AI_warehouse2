@@ -238,6 +238,13 @@ const userMeta = computed(() => {
 
       <main class="content-area">
         <template v-if="!isCreatingOrder && !formOpen">
+          <div class="view-header">
+            <div class="header-titles">
+              <h1 class="view-title">Pasūtījumu saraksts</h1>
+              <p class="view-subtitle">Skatiet veiktos pasūtījumus</p>
+            </div>
+          </div>
+
           <DataTable 
             :columns="tableColumns"
             :data="orders"
@@ -297,6 +304,24 @@ const userMeta = computed(() => {
   flex-direction: column;
   height: 100vh;
   background-color: #f8fafc;
+}
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.view-title {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.view-subtitle {
+  color: #64748b;
+  margin-top: 0.25rem;
 }
 
 .main-container {
