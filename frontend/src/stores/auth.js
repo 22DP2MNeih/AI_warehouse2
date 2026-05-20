@@ -3,11 +3,48 @@ import api from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
 export const useAuthStore = defineStore('auth', {
-    state: () => ({
-        user: null,
-        accessToken: localStorage.getItem('access_token') || null,
-        refreshToken: localStorage.getItem('refresh_token') || null,
-    }),
+    state: () => {
+        const accessToken = localStorage.getItem('access_token') || null;
+        const refreshToken = localStorage.getItem('refresh_token') || null;
+        let user = null;
+
+        // Synchronously extract and restore user info from token right on page load
+        if (accessToken) {
+            try {
+                const decoded = jwtDecode(accessToken);
+                // Check if the token has expired before parsing it
+                const currentTime = Date.now() / 1000;
+                if (decoded.exp && decoded.exp < currentTime) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                } else {
+                    user = {
+                        id: decoded.user_id,
+                        username: decoded.username,
+                        role: decoded.role,
+                        company: {
+                            id: decoded.company_id,
+                            name: decoded.company_name
+                        },
+                        warehouse: {
+                            id: decoded.warehouse_id,
+                            name: decoded.warehouse_name
+                        }
+                    };
+                }
+            } catch (e) {
+                console.error("Invalid token during boot synchronization:", e);
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+            }
+        }
+
+        return {
+            user,
+            accessToken,
+            refreshToken,
+        };
+    },
     getters: {
         isAuthenticated: (state) => !!state.accessToken,
         userRole: (state) => state.user?.role || '',
@@ -40,9 +77,6 @@ export const useAuthStore = defineStore('auth', {
             this.user = null;
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            // Force reload to clear any component state or redirect
-            // We'll let the component handle redirect or do it here
-            // window.location.href = '/login'; 
         },
         setTokens(access, refresh) {
             this.accessToken = access;
@@ -60,7 +94,6 @@ export const useAuthStore = defineStore('auth', {
                         id: decoded.user_id,
                         username: decoded.username,
                         role: decoded.role,
-                        // Add these new lines:
                         company: {
                             id: decoded.company_id,
                             name: decoded.company_name
@@ -75,9 +108,6 @@ export const useAuthStore = defineStore('auth', {
                     this.logout();
                 }
             }
-        },
-        initialize() {
-            this.decodeAndSetUser();
         }
     }
 });
