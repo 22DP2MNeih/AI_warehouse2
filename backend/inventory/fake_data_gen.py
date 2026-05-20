@@ -8,8 +8,8 @@ def generate_ai_training_data(num_orders, days_back):
     sql_statements = []
     
     # Define fixed values as per your request
-    ordered_by_id = 1
-    from_warehouse_id = 2
+    ordered_by_id = 2
+    from_warehouse_id = 3
     order_type = "CONSUME"
     status = "COMPLETED"
     is_historical = 1
@@ -21,12 +21,12 @@ def generate_ai_training_data(num_orders, days_back):
         product_listing_id = random.randrange(9, 251, 10)
         
         # Generate a slightly varied quantity
-        quantity = random.randint(1, 500)
+        quantity = random.randint(1, 150)
         
         # Calculate a random time delta between now and 'days_back' ago
         # We calculate a random number of seconds to subtract from 'now'
         time_delta_seconds = random.randint(0, days_back * 24 * 60 * 60)
-        random_time = now - timedelta(seconds=time_delta_seconds)
+        random_time = now - timedelta(seconds=time_delta_seconds + 8 * 24 * 60 * 60)
         
         # Format the timestamp
         created_at = random_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -42,7 +42,7 @@ def generate_ai_training_data(num_orders, days_back):
 
 # --- Generation ---
 # Let's generate 100 orders for this example
-num_orders_to_generate = 100
-generated_sql = generate_ai_training_data(num_orders_to_generate, 30)
+num_orders_to_generate = 30
+generated_sql = generate_ai_training_data(num_orders_to_generate, 20)
 
 print(generated_sql)

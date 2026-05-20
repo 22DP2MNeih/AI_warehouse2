@@ -6,15 +6,19 @@ const props = defineProps({
 });
 console.log(props.userMeta);
 
-// 1. Setup template refs instead of hardcoded DOM IDs
 const canvasRef = ref(null);
 const containerRef = ref(null);
 const themeLabel = ref(null);
 
 const isDarkMode = ref(false);
+// Reactive state for the responsive mobile menu visibility
+const isMenuOpen = ref(false);
+
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value;
+};
 
 class ThemeVisualizer {
-  // Pass the actual DOM elements instead of string IDs
   constructor(canvasElement, containerElement, labelRef) {
     this.canvas = canvasElement;
     this.ctx = this.canvas.getContext('2d');
@@ -129,7 +133,6 @@ class ThemeVisualizer {
 }
 
 onMounted(() => {
-  // 2. Pass the direct DOM element references (`.value`) into the class instance safely
   if (canvasRef.value && containerRef.value) {
     new ThemeVisualizer(canvasRef.value, containerRef.value, themeLabel);
   }
@@ -147,27 +150,45 @@ const tabs = [
 
 <template>
   <header>
-    <ul class="tabs">
-      <li v-for="tab in tabs" :key="tab.id">
-        <router-link :to="tab.link">{{ tab.text }}</router-link>
-      </li>
-    </ul>
+    <!-- Brand / Logo space or placeholder to keep header structured on mobile -->
+    <div class="header-brand">
+      <strong>Sistēma</strong>
+    </div>
 
-    <div class="header-tools">
-      <div class="user-meta">
-        <!-- Optional chaining protects against unpopulated auth store properties -->
-        <strong>{{ props.userMeta?.username }}</strong>
-        <strong>{{ props.userMeta?.role }}</strong>
-        <span class="logout">Iziet</span>
-      </div>
-      
-      <!-- 3. Bind the refs to the HTML template elements -->
-      <div ref="containerRef" title="Toggle Dark/Light Mode" class="toggle-container-style">
-        <canvas ref="canvasRef"></canvas>
-      </div>
-      <div class="label-text" ref="themeLabel" v-show="false">Light Mode</div>
+    <!-- Burger Button Component -->
+    <button 
+      class="burger-btn" 
+      :class="{ 'is-active': isMenuOpen }" 
+      @click="toggleMenu"
+      aria-label="Toggle navigation menu"
+    >
+      <span class="burger-line"></span>
+      <span class="burger-line"></span>
+      <span class="burger-line"></span>
+    </button>
 
-      <div class="btn-sq">LV</div>
+    <!-- Navigation Container (Responsive Drawer/Overlay) -->
+    <div class="nav-container" :class="{ 'is-open': isMenuOpen }">
+      <ul class="tabs">
+        <li v-for="tab in tabs" :key="tab.id">
+          <router-link :to="tab.link" @click="isMenuOpen = false">{{ tab.text }}</router-link>
+        </li>
+      </ul>
+
+      <div class="header-tools">
+        <div class="user-meta">
+          <strong>{{ props.userMeta?.username }}</strong>
+          <strong>{{ props.userMeta?.role }}</strong>
+          <span class="logout">Iziet</span>
+        </div>
+        
+        <div ref="containerRef" title="Toggle Dark/Light Mode" class="toggle-container-style">
+          <canvas ref="canvasRef"></canvas>
+        </div>
+        <div class="label-text" ref="themeLabel" v-show="false">Light Mode</div>
+
+        <div class="btn-sq">LV</div>
+      </div>
     </div>
   </header>
 </template>
@@ -179,8 +200,24 @@ header {
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: flex-end;
+  justify-content: space-between;
   padding: 0 40px;
   position: relative;
+  z-index: 100;
+}
+
+.header-brand {
+  align-self: center;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.nav-container {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
 }
 
 .tabs {
@@ -195,6 +232,7 @@ header {
   font-weight: 500;
   cursor: pointer;
   color: #64748b;
+  display: block;
 }
 
 .tabs li a.active {
@@ -214,15 +252,12 @@ header {
 }
 
 .header-tools {
-  position: absolute;
-  top: 25px;
-  right: 40px;
   display: flex;
   align-items: center;
   gap: 20px;
+  margin-bottom: 12px;
 }
 
-/* Changed selector from ID (#toggle-container) to class (.toggle-container-style) */
 .toggle-container-style {
   cursor: pointer;
   user-select: none;
@@ -238,7 +273,7 @@ header {
 }
 
 .user-meta { text-align: right; font-size: 0.85rem; }
-.user-meta strong { display: block; } /* Separates username and role visually */
+.user-meta strong { display: block; }
 .logout { color: #ef4444; font-weight: 600; cursor: pointer; margin-left: 8px; font-size: 0.75rem; }
 
 .btn-sq {
@@ -250,5 +285,120 @@ header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+/* Hidden by default on desktop viewports */
+.burger-btn {
+  display: none;
+}
+
+/* Mobile Layout Brakepoint (Max-width: 1024px) */
+@media (max-width: 1024px) {
+  header {
+    align-items: center;
+    padding: 0 20px;
+    height: 70px;
+  }
+
+  .header-brand {
+    margin-bottom: 0;
+  }
+
+  /* Expose the burger toggle button */
+  .burger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 101;
+  }
+
+  .burger-line {
+    width: 100%;
+    height: 2px;
+    background-color: #334155;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* Morphing burger animations into an 'X' close pattern when active */
+  .burger-btn.is-active .burger-line:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+
+  .burger-btn.is-active .burger-line:nth-child(2) {
+    opacity: 0;
+  }
+
+  .burger-btn.is-active .burger-line:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  /* Transform nav-container into a full drawer menu system over the screen area */
+  .nav-container {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    width: 100%;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 20px;
+    gap: 25px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    
+    /* Smooth slide-down display animation transitions */
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .nav-container.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .tabs {
+    flex-direction: column;
+    width: 100%;
+    gap: 5px;
+  }
+
+  .tabs li {
+    width: 100%;
+  }
+
+  .tabs li a {
+    padding: 12px 10px;
+    font-size: 1rem;
+  }
+
+  .tabs li a.active::after {
+    bottom: unset;
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+  }
+
+  .header-tools {
+    width: 100%;
+    justify-content: space-between;
+    margin-bottom: 0;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .user-meta {
+    text-align: left;
+  }
 }
 </style>
