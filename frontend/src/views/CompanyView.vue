@@ -24,6 +24,10 @@ const formData = ref({});
 const selectedEmployee = ref(null);
 const selectedWarehouse = ref(null);
 const actionType = ref(""); // "approve", "edit", "add-warehouse", "edit-warehouse"
+ 
+const isEmployeesCollapsed = ref(false);
+const isEmployeeRequestsCollapsed = ref(false);
+const isWarehousesCollapsed = ref(false);
 
 const userMeta = computed(() => {
   return {
@@ -101,7 +105,7 @@ const approveFields = computed(() => [
     label: 'Piešķirt sākuma noliktavu', 
     options: warehouses.value.map(w => ({
       label: w.name,      
-      key: w.id         
+      key: w.id          
     })),
     required: true 
   }
@@ -126,7 +130,7 @@ const editFields = computed(() => [
     label: 'Mainīt noliktavu', 
     options: warehouses.value.map(w => ({
       label: w.name,      
-      key: w.id         
+      key: w.id          
     })),
     required: true 
   }
@@ -328,8 +332,12 @@ const handleSave = async (newData) => {
 
           <!-- Active Employees Section -->
           <div class="section-container">
-            <h2 class="section-title">Aktīvie darbinieki</h2>
+            <h2 class="section-title collapsible-header" @click="isEmployeesCollapsed = !isEmployeesCollapsed">
+              <span class="toggle-arrow">{{ isEmployeesCollapsed ? '►' : '▼' }}</span>
+              Aktīvie darbinieki
+            </h2>
             <DataTable 
+              v-show="!isEmployeesCollapsed"
               :columns="activeCols" 
               :data="filteredActive"
               :rowActions="isCeo ? activeRowActions : []"
@@ -345,19 +353,21 @@ const handleSave = async (newData) => {
 
           <!-- Pending Join Requests Section (Only shown if user is CEO) -->
           <div v-if="isCeo" class="section-container">
-            <h2 class="section-title">
+            <h2 class="section-title collapsible-header" @click="isEmployeeRequestsCollapsed = !isEmployeeRequestsCollapsed">
+              <span class="toggle-arrow">{{ isEmployeeRequestsCollapsed ? '►' : '▼' }}</span>
               Reģistrācijas pieteikumi 
               <span v-if="filteredPending.length > 0" class="pending-count-badge">
                 {{ filteredPending.length }}
               </span>
             </h2>
             
-            <div v-if="filteredPending.length === 0" class="no-pending-msg">
+            <div v-if="filteredPending.length === 0" v-show="!isEmployeeRequestsCollapsed" class="no-pending-msg">
               Nav jaunu reģistrācijas pieteikumu.
             </div>
             
             <DataTable 
               v-else
+              v-show="!isEmployeeRequestsCollapsed"
               :columns="pendingCols" 
               :data="filteredPending"
               :rowActions="pendingRowActions"
@@ -374,30 +384,35 @@ const handleSave = async (newData) => {
           <!-- Warehouses Section -->
           <div class="section-container">
             <div class="section-header-row">
-              <h2 class="section-title">Uzņēmuma Noliktavas</h2>
+              <h2 class="section-title collapsible-header" @click="isWarehousesCollapsed = !isWarehousesCollapsed">
+                <span class="toggle-arrow">{{ isWarehousesCollapsed ? '►' : '▼' }}</span>
+                Uzņēmuma Noliktavas
+              </h2>
               <button v-if="canManageWarehouses" class="btn-primary-action btn-add-warehouse" @click="handleWarehouseGlobalAction('add-warehouse')">
                 + Pievienot noliktavu
               </button>
             </div>
             
-            <div v-if="warehouses.length === 0" class="no-pending-msg">
-              Nav reģistrētu noliktavu. Pievienojiet pirmo!
+            <div v-show="!isWarehousesCollapsed">
+              <div v-if="warehouses.length === 0" class="no-pending-msg">
+                Nav reģistrētu noliktavu. Pievienojiet pirmo!
+              </div>
+              
+              <DataTable 
+                v-else
+                :columns="warehouseCols" 
+                :data="warehouses"
+                :rowActions="canManageWarehouses ? warehouseRowActions : []"
+                @action="handleWarehouseAction"
+              >
+                <template #col-latitude="{ value }">
+                  <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
+                </template>
+                <template #col-longitude="{ value }">
+                  <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
+                </template>
+              </DataTable>
             </div>
-            
-            <DataTable 
-              v-else
-              :columns="warehouseCols" 
-              :data="warehouses"
-              :rowActions="canManageWarehouses ? warehouseRowActions : []"
-              @action="handleWarehouseAction"
-            >
-              <template #col-latitude="{ value }">
-                <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
-              </template>
-              <template #col-longitude="{ value }">
-                <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
-              </template>
-            </DataTable>
           </div>
         </template>
 
@@ -478,6 +493,23 @@ const handleSave = async (newData) => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.collapsible-header:hover {
+  color: #0f172a;
+}
+
+.toggle-arrow {
+  display: inline-block;
+  width: 1rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
 }
 
 .section-header-row {
