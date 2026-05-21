@@ -391,48 +391,8 @@ const handleCsvExport = () => {
             </div>
           </div>
 
-          <!-- ADMIN Area: Big Table of Companies -->
-          <div v-if="isAdmin" class="section-container">
-            <h2 class="section-title">Uzņēmumu MI Konfigurācija</h2>
-            <DataTable 
-              :columns="adminCompanyCols"
-              :data="companySettingsList"
-              :rowActions="adminRowActions"
-              @action="handleAdminAction"
-            >
-              <!-- Highlight active selected row & render custom cells -->
-              <template #row="{ item }">
-                <tr 
-                  :class="['company-row', selectedCompanyId === item.id ? 'active-selected-row' : '']"
-                  @click="selectCompany(item)"
-                >
-                  <td>
-                    <div class="company-name-cell">
-                      <span class="selection-indicator"></span>
-                      <strong>{{ item.name }}</strong>
-                    </div>
-                  </td>
-                  <td>{{ Math.round(parseFloat(item.service_level) * 1000) / 10 }}%</td>
-                  <td>{{ item.prediction_period }} dienas</td>
-                  <td>{{ item.ai_epochs }}</td>
-                  <td>Katras {{ item.ai_update_frequency }} stundas</td>
-                  
-                  <!-- Actions Column mapping -->
-                  <td class="action-cell">
-                    <button class="btn-primary-action btn-sm" @click.stop="handleAdminAction({ action: 'edit', item })">
-                      Rediģēt
-                    </button>
-                    <button class="btn-train-row btn-sm" @click.stop="handleAdminAction({ action: 'train', item })">
-                      Apmācīt
-                    </button>
-                  </td>
-                </tr>
-              </template>
-            </DataTable>
-          </div>
-
           <!-- Main Predictions Table -->
-          <div class="section-container">
+          <!-- <div class="section-container"> -->
             <h2 class="section-title">
               {{ isAdmin ? `Detaļu prognozes priekš: ${companySettings?.name || '-'}` : 'Krājumu analīze un sliekšņi' }}
             </h2>
@@ -467,7 +427,7 @@ const handleCsvExport = () => {
                 />
               </template>
             </DataTable>
-          </div>
+          <!-- </div> -->
         </template>
 
         <!-- Admin Editing form Container -->

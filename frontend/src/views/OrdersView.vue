@@ -226,17 +226,17 @@ const userMeta = computed(() => {
 </script>
 
 <template>
-  <div class="dashboard-layout">
+  <div class="app-layout">
     <NavBar :userMeta="userMeta" activeTab="order" />
     
-    <div class="main-container">
+    <div class="content-body">
       <SideBar 
         v-model="filters" 
         :config="sidebarConfig" 
         title="Filtri"
       />
 
-      <main class="content-area">
+      <main class="main-content">
         <template v-if="!isCreatingOrder && !formOpen">
           <div class="view-header">
             <div class="header-titles">
@@ -299,6 +299,17 @@ const userMeta = computed(() => {
 </template>
 
 <style scoped>
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8fafc;
+}
+.content-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 .dashboard-layout {
   display: flex;
   flex-direction: column;
@@ -324,10 +335,13 @@ const userMeta = computed(() => {
   margin-top: 0.25rem;
 }
 
-.main-container {
-  display: flex;
+.main-content {
   flex: 1;
-  overflow: hidden;
+  padding: 2rem 0rem 0rem 3rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 :deep(.sidebar-container) {
@@ -339,7 +353,7 @@ const userMeta = computed(() => {
 .content-area {
   flex: 1;
   padding: 40px;
-  overflow-y: auto;
+  /* overflow-y: hidden; */
   background-color: #f8fafc;
 }
 

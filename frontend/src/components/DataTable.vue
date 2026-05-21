@@ -156,7 +156,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   width: 100%;
   overflow-x: auto;
   overflow-y: auto; /* Atļauj vertikālo ritināšanu */
-  max-height: calc(100% - 3rem - 10px); /* Definē maksimālo augstumu, līdz kuram tabula aug pirms ritināšanas (pielāgo pēc vajadzības) */
+  max-height: calc(100% - 3.5rem - 10px); /* Definē maksimālo augstumu, līdz kuram tabula aug pirms ritināšanas (pielāgo pēc vajadzības) */
   -webkit-overflow-scrolling: touch;
 }
 

@@ -353,11 +353,6 @@ const closeForm = () => {
               <h1 class="view-title">Noliktavas Inventārs</h1>
               <p class="view-subtitle">Pārvaldiet uzņēmuma detaļas un pārvietojumus</p>
             </div>
-            <div class="view-actions" v-if="canAddPart">
-              <button class="btn-add" @click="handleGlobalAction('add-part')">
-                + Pievienot detaļu
-              </button>
-            </div>
           </div>
 
           <DataTable 
