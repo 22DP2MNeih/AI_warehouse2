@@ -360,13 +360,19 @@ const handleCsvExport = () => {
         <template v-if="!formOpen">
           <div class="view-header">
             <div class="header-titles">
+              <h1 class="view-title">MI Inventāra Prognozes</h1>
+              <p class="view-subtitle">Pārvaldiet neironu tīklu parametrus un apmācību.</p>
+            </div>
+          </div>
+          <div class="view-header">
+            <!-- <div class="header-titles">
               <h1 class="view-title">
                 {{ isAdmin ? 'MI Sistēmas Administrēšana' : 'MI Inventāra Prognozes' }}
               </h1>
               <p class="view-subtitle">
                 {{ isAdmin ? 'Pārvaldiet visu uzņēmumu neironu tīklu parametrus un apmācību.' : 'Automātiski aprēķinātie krājumu sliekšņi optimālai darbībai.' }}
               </p>
-            </div>
+            </div> -->
             
             <div class="view-actions">
               <!-- Admin Global Retraining Trigger -->
@@ -380,22 +386,22 @@ const handleCsvExport = () => {
               </button>
 
               <!-- Normal User Actions -->
-              <template v-else>
+              <!-- <template v-else>
                 <button class="btn-save" @click="saveSettings" :disabled="loading">
                   {{ loading ? 'Saglabā...' : 'Saglabāt Iestatījumus' }}
                 </button>
                 <button class="btn-train" @click="trainModel" :disabled="training">
                   {{ training ? 'Apmāca...' : 'Apmācīt MI' }}
                 </button>
-              </template>
+              </template> -->
             </div>
           </div>
 
           <!-- Main Predictions Table -->
           <!-- <div class="section-container"> -->
-            <h2 class="section-title">
+            <!-- <h2 class="section-title">
               {{ isAdmin ? `Detaļu prognozes priekš: ${companySettings?.name || '-'}` : 'Krājumu analīze un sliekšņi' }}
-            </h2>
+            </h2> -->
             
             <DataTable 
               :columns="tableCols"
@@ -467,7 +473,7 @@ const handleCsvExport = () => {
 
 .main-content {
   flex: 1;
-  padding: 2rem 3rem;
+  padding: 2rem 0rem 0rem 3rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
