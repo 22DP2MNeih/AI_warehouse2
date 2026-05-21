@@ -117,14 +117,12 @@ const addPartFields = [
 const sidebarConfig = ref([
   { id: 'name', type: 'text', label: 'Nosaukums' },
   { id: 'vin', type: 'text', label: 'VIN' },
-  { id: 'sku', type: 'text', label: 'SKU' },
   { id: 'company', type: 'text', label: 'Uzņēmums' },
 ]);
 
 const tableColumns = ref([
   { id: 'product_name', label: 'Nosaukums', sortable: true },
   { id: 'product_vin', label: 'VIN', sortable: true },
-  { id: 'sku', label: 'SKU', sortable: true },
   { id: 'company_name', label: 'Uzņēmums', sortable: true },
   { id: 'price', label: 'Cena', sortable: true }
 ]);

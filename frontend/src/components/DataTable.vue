@@ -115,7 +115,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
               <div class="cell-wrapper">
                 <div v-if="colIdx === 0" class="accent-marker"></div>
                 
-                <slot :name="`col-${col.id}`" :value="item[col.id]" :item="item">
+                <slot :name="`col-${col.id}`" :value="item[col.id]" :item="item" >
                   <template v-if="item[col.id] !== undefined && item[col.id] !== null">
                     {{ col.id === 'price' ? `${Number(item[col.id]).toFixed(2)} €` : item[col.id] }}
                   </template>
@@ -155,6 +155,8 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 .responsive-wrapper {
   width: 100%;
   overflow-x: auto;
+  overflow-y: auto; /* Atļauj vertikālo ritināšanu */
+  max-height: calc(100% - 3rem - 10px); /* Definē maksimālo augstumu, līdz kuram tabula aug pirms ritināšanas (pielāgo pēc vajadzības) */
   -webkit-overflow-scrolling: touch;
 }
 
@@ -185,6 +187,12 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   user-select: none;
   transition: color 0.2s;
   white-space: nowrap;
+  
+  /* Piefiksē galveni pie augšas ritinot */
+  position: sticky;
+  top: 0;
+  background-color: white; /* Nepieciešams fons, lai datu rindas neietu cauri tekstam */
+  z-index: 10; /* Nodrošina, ka galvene paliek virs rindas elementiem */
 }
 
 .table-header:hover { 
@@ -210,6 +218,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   position: relative;
   width: 100%;
   height: 100%;
+  white-space: nowrap;
 }
 
 .btn-primary-action {
