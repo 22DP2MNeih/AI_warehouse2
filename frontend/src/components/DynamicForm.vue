@@ -21,8 +21,15 @@ const handleSubmit = () => {
   // Pārbauda vai lauki, kuri ir obligāti ir izpildīti
   props.fields.forEach(f => {
     if (f.required && !formData.value[f.id]) {
+      console.log('Šis lauks ir obligāts');
       errors.value[f.id] = 'Šis lauks ir obligāts';
       valid = false;
+    }
+    if (f.maxCharacters) {
+      if (formData.value[f.id].length > f.maxCharacters) {
+        errors.value[f.id] = `Pārāk daudz simbolu! Maximums: ${f.maxCharacters}`;
+        valid = false;
+      }
     }
   });
 

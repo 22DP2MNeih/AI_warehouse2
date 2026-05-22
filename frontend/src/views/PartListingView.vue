@@ -102,15 +102,7 @@ const orderFields = [
   { id: 'product_name', type: 'text', label: 'Detaļa', disabled: true },
   { id: 'sku', type: 'text', label: 'SKU', disabled: true },
   { id: 'quantity', type: 'float', label: 'Daudzums', min: 1, required: true },
-  { id: 'notes', type: 'textarea', label: 'Piezīmes', fullWidth: true },
-];
-
-const addPartFields = [
-  { id: 'product_name', type: 'text', label: 'Nosaukums', required: true },
-  { id: 'product_vin', type: 'text', label: 'VIN', required: true },
-  { id: 'sku', type: 'text', label: 'SKU', required: true },
-  { id: 'price', type: 'float', label: 'Cena', required: true },
-  { id: 'description', type: 'textarea', label: 'Apraksts', fullWidth: true },
+  { id: 'notes', type: 'textarea', label: 'Piezīmes', fullWidth: true, maxCharacters: 255 },
 ];
 
 // --- Existing Configurations ---
@@ -394,7 +386,7 @@ const closeForm = () => {
             
             <!-- High-Fidelity Stripe Element Simulator -->
             <div v-show="isMockPayment" class="stripe-simulator-wrapper">
-              <label class="input-label">Kartes informācija</label>
+              <!-- <label class="input-label">Kartes informācija</label>
               <div class="card-input-container">
                 <div class="card-number-wrapper">
                   <input 
@@ -409,7 +401,7 @@ const closeForm = () => {
                 </div>
                 
                 <!-- Unified Container splitting Month and Year inputs -->
-                <div class="card-sub-fields">
+                <!-- <div class="card-sub-fields">
                   <input 
                     type="text" 
                     class="card-field split-expiry" 
@@ -445,7 +437,7 @@ const closeForm = () => {
               </div>
               <div class="test-card-hint">
                 💡 Izmantojiet testa karti: <strong>4242 4242 4242 4242</strong> ar jebkuru nākotnes derīguma termiņu un CVC.
-              </div>
+              </div> -->
             </div>
               <label class="input-label">Kartes informācija (Testa režīms)</label>
               <div class="card-input-container">
@@ -581,7 +573,6 @@ const closeForm = () => {
   transform: translateY(-1px);
 }
 
-/* --- Stripe Elements Payment Styles --- */
 .payment-modal-overlay {
   position: fixed;
   top: 0;

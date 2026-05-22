@@ -410,6 +410,7 @@ const handleCsvExport = () => {
                 { id: 'order', label: 'Veikt pasūtījumu' },
                 { id: 'csv', label: 'Eksportēt datus CSV' }
               ]"
+              :loading="true"
               @globalAction="(id) => id === 'order' ? handleBulkOrder() : (id === 'csv' ? handleCsvExport() : null)"
             >
               <template #col-currentStock="{ value, item }">

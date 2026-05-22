@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 // Tabulas dati un pogas
 const props = defineProps({
@@ -7,7 +7,8 @@ const props = defineProps({
   data: { type: Array, required: true },
   filters: { type: Object, default: () => ({}) },
   rowActions: { type: Array, default: () => [] },
-  globalActions: { type: Array, default: () => [] }
+  globalActions: { type: Array, default: () => [] },
+  loading: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['action', 'globalAction']);
@@ -66,6 +67,36 @@ const processedData = computed(() => {
 
 const getSortInfo = (id) => sortStack.value.find(s => s.fieldId === id);
 const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id) + 1;
+
+// const responsiveWrapperTarget = ref({});
+
+// onMounted(() => {
+//   // const responsiveWrapperTarget = document.getElementById('responsive-wrapper');
+//   console.log(responsiveWrapperTarget);
+//   sizeObserver.observe(responsiveWrapperTarget);
+// });
+
+// const sizeObserver = new ResizeObserver((entries) => {
+//   for (let entry of entries) {
+//     // entry.contentRect gives the exact inner width/height minus scrollbars
+//     // entry.borderBoxSize gives the full visual size including borders/scrollbars
+//     const width = entry.borderBoxSize[0].inlineSize;
+//     const height = entry.borderBoxSize[0].blockSize;
+
+//     // Inject the exact current pixels into CSS variables
+//     document.documentElement.style.setProperty('--target-visible-width', `${width}px`);
+//     document.documentElement.style.setProperty('--target-visible-height', `${height}px`);
+//   }
+// });
+// document.documentElement.style.setProperty('--target-visible-width', `0px`);
+// document.documentElement.style.setProperty('--target-visible-height', `0px`);
+
+
+
+// const target = document.getElementById('responsive-wrapper');
+// console.log(target);
+// sizeObserver.observe(target);
+// sizeObserver.observe(target);
 </script>
 
 <template>
@@ -85,14 +116,22 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
     </div>
 
     <!-- Pievienots wrapper elastīgai izmēru maiņai, lai novērstu pārlūka izlēcienus -->
-    <div class="responsive-wrapper">
+    <div id="responsive-wrapper">
+      <!-- Loading slānis piesaistīts skatlogam bez aiztures ritinot -->
+      <!-- <div v-if="loading" class="loading-overlay"> -->
+        <!-- <div class="spinner-box"> -->
+          <!-- <div class="spinner"></div> -->
+        <!-- </div> -->
+      <!-- </div> -->
+
       <table class="data-table">
-        <thead>
-          <tr>
-            <th 
+        <thead class="min-height-addition">
+          <tr class="min-height-addition">
+            <th
+               
               v-for="col in columns" 
               :key="col.id" 
-              class="table-header"
+              class="table-header min-height-addition"
               @click="handleSort(col.id)"
             >
               {{ col.label }}
@@ -103,7 +142,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
                 {{ getSortPriority(col.id) }}
               </span>
             </th>
-            <th v-if="rowActions.length" class="table-header">Darbība</th>
+            <th v-if="rowActions.length" class="table-header min-height-addition">Darbība</th>
           </tr>
         </thead>
         
@@ -152,7 +191,8 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
 }
 
 /* Drošības slānis pret ekstremālu ekrāna samazināšanu */
-.responsive-wrapper {
+#responsive-wrapper {
+  position: relative;
   width: 100%;
   overflow-x: auto;
   overflow-y: auto; /* Atļauj vertikālo ritināšanu */
@@ -168,10 +208,15 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   gap: 1rem;
 }
 
+.min-height-addition {
+  min-height: 5rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
   /* Nodrošina stingrāku tabulas izmēru aprēķinu pārlūkos */
+  min-height: 5rem;
   table-layout: auto;
 }
 
@@ -187,6 +232,7 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   user-select: none;
   transition: color 0.2s;
   white-space: nowrap;
+  min-height: 5rem;
   
   /* Piefiksē galveni pie augšas ritinot */
   position: sticky;
@@ -276,5 +322,54 @@ const getSortPriority = (id) => sortStack.value.findIndex(s => s.fieldId === id)
   display: flex;
   gap: 8px;
   flex-wrap: nowrap;
+}
+
+/* Loading stili - fiksēts un iecentrēts neatkarīgi no ritināšanas */
+.loading-overlay {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(1px);
+  
+  /* Automatically maps to the precise pixel footprint of the target */
+  width: var(--target-visible-width);
+  height: var(--target-visible-height);
+  margin-bottom: calc(-100% - 4rem);
+  margin-right: -100%;
+}
+
+.spinner-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* .spinner {
+  position: relative;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+} */
+
+.spinner {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
