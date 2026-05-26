@@ -101,7 +101,7 @@ const userMeta = computed(() => {
 const orderFields = [
   { id: 'product_name', type: 'text', label: 'Detaļa', disabled: true },
   { id: 'sku', type: 'text', label: 'SKU', disabled: true },
-  { id: 'quantity', type: 'float', label: 'Daudzums', min: 1, required: true },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 1, max: 1, required: true },
   { id: 'notes', type: 'textarea', label: 'Piezīmes', fullWidth: true, maxCharacters: 255 },
 ];
 
@@ -154,6 +154,10 @@ const handleAction = ({ action, item }) => {
     actionType.value = "order_part";
     formTitle.value = `Pasūtīt detaļu: ${item.product_name}`;
     formFields.value = orderFields;
+    console.log(item);
+    formFields.value = formFields.value.map(field => 
+        field.id === 'quantity' ? { ...field, max: item.market_quantity } : field
+    );
     formData.value = {
       product_name: item.product_name,
       sku: item.sku,

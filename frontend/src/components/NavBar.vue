@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 
 const props = defineProps({
   userMeta: { type: Object, required: true },
@@ -137,15 +137,47 @@ onMounted(() => {
     new ThemeVisualizer(canvasRef.value, containerRef.value, themeLabel);
   }
 });
-
-const tabs = [
+const tabsAdmin = [
+  {id: "parts", text: "Detaļu izvēlne", link: "/parts"}, 
+  {id: "company", text: "Uzņēmums", link: "/company"},
+  {id: "order", text: "Pasūtījumi", link: "/orders"},
+  {id: "options", text: "Iestatījumi", link: "/options"},
+];
+const tabsWHManeger = [
+  {id: "parts", text: "Detaļu izvēlne", link: "/parts"}, 
+  {id: "order", text: "Pasūtījumi", link: "/orders"},
+  {id: "warehouse", text: "Noliktva", link: "/warehouse"},
+  {id: "ai_predictions", text: "MI ieteikumi", link: "/ai_predictions"},
+];
+const tabsCEO = [
   {id: "parts", text: "Detaļu izvēlne", link: "/parts"}, 
   {id: "company", text: "Uzņēmums", link: "/company"},
   {id: "order", text: "Pasūtījumi", link: "/orders"},
   {id: "warehouse", text: "Noliktva", link: "/warehouse"},
-  {id: "options", text: "Iestatījumi", link: "/options"},
   {id: "ai_predictions", text: "MI ieteikumi", link: "/ai_predictions"},
+];
+const tabsMechanic = [
+  {id: "parts", text: "Detaļu izvēlne", link: "/parts"}, 
+  {id: "order", text: "Pasūtījumi", link: "/orders"},
+  {id: "warehouse", text: "Noliktva", link: "/warehouse"},
+];
+const allTabs = [
+  {id: "parts", text: "Detaļu izvēlne", link: "/parts", permision: ["MECHANIC", "ADMIN", "WAREHOUSE_MANAGER", "CEO"]}, 
+  {id: "company", text: "Uzņēmums", link: "/company", permision: ["ADMIN", "CEO"]},
+  {id: "order", text: "Pasūtījumi", link: "/orders", permision: ["MECHANIC", "ADMIN", "WAREHOUSE_MANAGER", "CEO"]},
+  {id: "warehouse", text: "Noliktva", link: "/warehouse", permision: ["MECHANIC", "WAREHOUSE_MANAGER", "CEO"]},
+  {id: "options", text: "Iestatījumi", link: "/options", permision: ["ADMIN"]},
+  {id: "ai_predictions", text: "MI ieteikumi", link: "/ai_predictions", permision: ["WAREHOUSE_MANAGER", "CEO"]},
 ]
+
+const tabs = computed(() => {
+  const userRole = props.userMeta?.role;
+  
+  // If there is no user role yet, return no tabs (or a default set if preferred)
+  if (!userRole) return [];
+  
+  return allTabs.filter(tab => tab.permision.includes(userRole));
+});
 </script>
 
 <template>
