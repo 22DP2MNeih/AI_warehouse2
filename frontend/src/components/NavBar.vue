@@ -1,21 +1,38 @@
 <script setup>
 import { onMounted, computed, ref } from 'vue';
+import { useRouter } from 'vue-router';       // 1. Import useRouter
+import { useAuthStore } from '@/stores/auth'; // 2. Import your Pinia authStore (adjust path if needed)
 
 const props = defineProps({
   userMeta: { type: Object, required: true },
 });
 console.log(props.userMeta);
 
+// Initialize router and store
+const router = useRouter();
+const authStore = useAuthStore();
+
 const canvasRef = ref(null);
 const containerRef = ref(null);
 const themeLabel = ref(null);
 
 const isDarkMode = ref(false);
-// Reactive state for the responsive mobile menu visibility
 const isMenuOpen = ref(false);
 
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
+};
+
+// 3. Define the functional logout handler
+const handleLogout = async () => {
+  // Clear Pinia state and localStorage tokens
+  await authStore.logout();
+  
+  // Close mobile drawer menu if open
+  isMenuOpen.value = false;
+  
+  // Programmatically redirect to login route
+  router.push('/');
 };
 
 class ThemeVisualizer {
@@ -149,22 +166,27 @@ const allTabs = [
 
 const tabs = computed(() => {
   const userRole = props.userMeta?.role;
-  
-  // If there is no user role yet, return no tabs (or a default set if preferred)
   if (!userRole) return [];
-  
   return allTabs.filter(tab => tab.permision.includes(userRole));
 });
+
+const roleTranslations = {
+  "MECHANIC": "Mehāniķis", 
+  "ADMIN": "Administrātors", 
+  "WAREHOUSE_MANAGER": "Noliktavas vadītājs", 
+  "CEO": "Uzņēmuma vadītājs"
+}
+const userRole = computed(() => {
+  return props.userMeta.role != undefined ? roleTranslations[props.userMeta.role] : "";
+})
 </script>
 
 <template>
   <header>
-    <!-- Brand / Logo space or placeholder to keep header structured on mobile -->
     <div class="header-brand">
       <strong>Sistēma</strong>
     </div>
 
-    <!-- Burger Button Component -->
     <button 
       class="burger-btn" 
       :class="{ 'is-active': isMenuOpen }" 
@@ -176,7 +198,6 @@ const tabs = computed(() => {
       <span class="burger-line"></span>
     </button>
 
-    <!-- Navigation Container (Responsive Drawer/Overlay) -->
     <div class="nav-container" :class="{ 'is-open': isMenuOpen }">
       <ul class="tabs">
         <li v-for="tab in tabs" :key="tab.id">
@@ -187,8 +208,8 @@ const tabs = computed(() => {
       <div class="header-tools">
         <div class="user-meta">
           <strong>{{ props.userMeta?.username }}</strong>
-          <strong>{{ props.userMeta?.role }}</strong>
-          <span class="logout">Iziet</span>
+          <strong>{{ userRole }}</strong>
+          <span class="logout" @click="handleLogout">Iziet</span>
         </div>
         
         <div ref="containerRef" title="Toggle Dark/Light Mode" class="toggle-container-style">
