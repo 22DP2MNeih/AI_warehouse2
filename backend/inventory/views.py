@@ -250,11 +250,11 @@ class WarehouseStockViewSet(viewsets.ModelViewSet):
              cv2 = round(0.05 + (s.id % 4) * 0.1, 2)
              
              if s.quantity < prediction_floor:
-                 trend = 'Rising'
+                 trend = 'Augšāmejošs'
              elif s.quantity > prediction_floor * 1.5:
-                 trend = 'Falling'
+                 trend = 'Krītošs'
              else:
-                 trend = 'Stable'
+                 trend = 'Stabils'
                  
              recommendations.append({
                  'stock_id': s.id,

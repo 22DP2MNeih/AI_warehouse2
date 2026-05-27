@@ -61,6 +61,12 @@ const tableCols = [
   { id: 'orderQty', label: 'Pasūtīt' }
 ];
 
+const trendClassMap = {
+  "Augšāmejošs": "rising",
+  "Krītošs": "falling",
+  "Stabils": "stable",
+}
+
 // Admin configuration table columns
 const adminCompanyCols = [
   { id: 'name', label: 'Uzņēmums' },
@@ -143,7 +149,7 @@ const fetchPredictionsOnly = async (companyId = null) => {
       aiThreshold: item.prediction_floor,
       cv2: item.cv2 !== undefined ? item.cv2 : 0.15,
       adi: item.adi !== undefined ? item.adi : 1.2,
-      trend: item.trend || 'Stable',
+      trend: item.trend || '-',
       price: item.price || 0.0,
       lastOrdered: item.last_ordered || 'Nav pasūtīts',
       orderQty: 0
@@ -420,8 +426,8 @@ const handleCsvExport = () => {
               </template>
 
               <template #col-trend="{ value }">
-                <span :class="['trend-icon', value.toLowerCase()]">
-                  {{ value === 'Rising' ? '↗' : value === 'Falling' ? '↘' : '→' }} {{ value }}
+                <span :class="['trend-icon', trendClassMap[value]]">
+                  {{ value === 'Augšāmejošs' ? '↗' : value === 'Krītošs' ? '↘' : '→' }} {{ value }}
                 </span>
               </template>
 

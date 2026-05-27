@@ -11,13 +11,13 @@ class CustomUser(AbstractUser):
         ('WAREHOUSE_MANAGER', 'Noliktavas vadītājs'),
         ('MECHANIC', 'Mehāniķis'),
     )
-    username = models.CharField(max_length=20, default='', unique=True)
+    username = models.CharField(max_length=50, default='', unique=True)
     # email = models.EmailField(unique=True)
     
     # This is the crucial line:
     # USERNAME_FIELD = 'email'
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MECHANIC')
-    email = models.CharField(max_length=20, default='')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='MECHANIC')
+    email = models.CharField(max_length=50, default='')
 
     company = models.ForeignKey('inventory.Company', on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')
     warehouse = models.ForeignKey('inventory.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='staff')
