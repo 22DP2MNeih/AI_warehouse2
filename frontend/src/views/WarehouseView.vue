@@ -144,15 +144,15 @@ const filteredInventory = computed(() => {
 const consumeFields = [
   { id: 'part_name', type: 'text', label: 'Detaļas Nosaukums', disabled: true },
   { id: 'vin_input', type: 'text', label: 'VIN Kods', disabled: true },
-  { id: 'used_on', type: 'text', label: 'Detaļa izmantota auto', required: true },
-  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, step: 0.001, required: true },
+  { id: 'used_on', type: 'textarea', label: 'Detaļa izmantota auto', required: true, maxCharacters: 255 },
+  { id: 'quantity', type: 'float', label: 'Daudzums', min: 0, max: 1, step: 0.001, required: true },
 ];
 
 const inventoryFields = computed(() => [
-  { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true },
-  { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true },
-  { id: 'location', type: 'text', label: 'Novietojums', required: true },
-  { id: 'vin_input', type: 'text', label: 'VIN Kods', required: true },
+  { id: 'name', type: 'text', label: 'Detaļas Nosaukums', required: true, maxCharacters: 255 },
+  { id: 'sku_input', type: 'text', label: 'SKU Kods', required: true, maxCharacters: 255 },
+  { id: 'location', type: 'text', label: 'Novietojums', required: true, maxCharacters: 100 },
+  { id: 'vin_input', type: 'text', label: 'VIN Kods', required: true, maxCharacters: 17 },
   { 
     id: 'warehouse_id', 
     type: 'select', 
@@ -171,7 +171,7 @@ const inventoryFields = computed(() => [
     {key: 'GLOBAL', label: 'Visas detaļas ārējas'}
   ], required: true },
   { id: 'sharing_value_input', type: 'float', label: 'Dalšanās skaits', min: 0, step: 0.00001 },
-  { id: 'description_input', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true },
+  { id: 'description_input', type: 'textarea', label: 'Papildus Apraksts', fullWidth: true, maxCharacters: 255 },
 ]);
 
 const transferFields = computed(() => [
@@ -277,6 +277,9 @@ const handleAction = ({ action, item }) => {
       vin_input: item.vin,
       quantity: 1
     };
+    formFields.value = formFields.value.map(field => 
+        field.id === 'quantity' ? { ...field, max: item.quantity } : field
+    );
     formOpen.value = true;
   } else if (action === 'transfer_part') {
     formTitle.value = "Pārvietot Detaļu";
