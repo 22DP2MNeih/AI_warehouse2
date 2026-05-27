@@ -17,12 +17,6 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'vin', 'description', 'category', 'created_at']
 
 class WarehouseSerializer(serializers.ModelSerializer):
-    # This automatically converts GeoDjango Point objects into a dict: 
-    # {"latitude": XX.XXXX, "longitude": YY.YYYY} and vice-versa
-    # 6 decimal places is standard accurate tracking for a physical facility
-    latitude = serializers.FloatField(required=False, allow_null=True)
-    longitude = serializers.FloatField(required=False, allow_null=True)
-
     class Meta:
         model = Warehouse
         fields = [
@@ -30,8 +24,7 @@ class WarehouseSerializer(serializers.ModelSerializer):
             'company', 
             'name', 
             'address', 
-            'latitude', 
-            'longitude', 
+            'country_code', 
             'created_at'
         ]
 

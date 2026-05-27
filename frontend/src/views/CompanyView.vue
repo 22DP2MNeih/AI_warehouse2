@@ -57,8 +57,7 @@ const pendingCols = [
 const warehouseCols = [
   { id: 'name', label: 'Noliktava' },
   { id: 'address', label: 'Adrese' },
-  { id: 'latitude', label: 'Platums (Lat)' },
-  { id: 'longitude', label: 'Garums (Lng)' }
+  { id: 'country_code', label: 'Valsts kods' }
 ];
 
 const sidebarConfig = [
@@ -139,8 +138,29 @@ const editFields = computed(() => [
 const warehouseFields = computed(() => [
   { id: 'name', type: 'text', label: 'Noliktavas nosaukums', required: true },
   { id: 'address', type: 'textarea', label: 'Adrese', required: false, fullWidth: true },
-  { id: 'latitude', type: 'float', label: 'Platums (Latitude)', required: false, min: -90, max: 90, step: 0.000001 },
-  { id: 'longitude', type: 'float', label: 'Garums (Longitude)', required: false, min: -180, max: 180, step: 0.000001 }
+  { 
+    id: 'country_code', 
+    type: 'select', 
+    label: 'Valsts', 
+    placeholder: 'Izvēlieties valsti...',
+    options: [
+      { key: 'LV', label: 'Latvija (LV)' },
+      { key: 'LT', label: 'Lietuva (LT)' },
+      { key: 'EE', label: 'Igaunija (EE)' },
+      { key: 'DE', label: 'Vācija (DE)' },
+      { key: 'PL', label: 'Polija (PL)' },
+      { key: 'FI', label: 'Somija (FI)' },
+      { key: 'SE', label: 'Zviedrija (SE)' },
+      { key: 'GB', label: 'Lielbritānija (GB)' },
+      { key: 'US', label: 'ASV (US)' },
+      { key: 'FR', label: 'Francija (FR)' },
+      { key: 'IT', label: 'Itālija (IT)' },
+      { key: 'ES', label: 'Spānija (ES)' },
+      { key: 'NL', label: 'Nīderlande (NL)' },
+      { key: 'OT', label: 'Cita valsts (OT)' }
+    ],
+    required: true
+  }
 ]);
 
 // --- Fetch Data ---
@@ -252,8 +272,7 @@ const handleWarehouseGlobalAction = (action) => {
     formData.value = {
       name: '',
       address: '',
-      latitude: null,
-      longitude: null
+      country_code: 'LV'
     };
     formOpen.value = true;
   }
@@ -268,8 +287,7 @@ const handleWarehouseAction = async ({ action, item }) => {
     formData.value = {
       name: item.name,
       address: item.address,
-      latitude: item.latitude,
-      longitude: item.longitude
+      country_code: item.country_code || 'LV'
     };
     formOpen.value = true;
   } else if (action === 'delete-warehouse') {
@@ -399,17 +417,15 @@ const handleSave = async (newData) => {
               </div>
               
               <DataTable 
+                v-show="!isWarehousesCollapsed"
                 v-else
                 :columns="warehouseCols" 
                 :data="warehouses"
                 :rowActions="canManageWarehouses ? warehouseRowActions : []"
                 @action="handleWarehouseAction"
               >
-                <template #col-latitude="{ value }">
-                  <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
-                </template>
-                <template #col-longitude="{ value }">
-                  <span>{{ value !== null && value !== undefined ? `${Number(value).toFixed(6)}°` : '-' }}</span>
+                <template #col-country_code="{ value }">
+                  <span class="country-badge">{{ value }}</span>
                 </template>
               </DataTable>
             </div>
@@ -570,6 +586,17 @@ const handleSave = async (newData) => {
   border: 1px solid #fde68a;
 }
 
+.country-badge {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+ 
 .form-container {
   display: flex;
   justify-content: center;

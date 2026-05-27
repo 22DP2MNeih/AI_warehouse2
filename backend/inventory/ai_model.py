@@ -11,6 +11,9 @@ from datetime import timedelta
 from django.db.models import Sum, Max, Min
 from .models import Order, Company, Warehouse, Product, CompanyProduct, WarehouseStock
 
+COUNTRY_CODES = ['LV', 'LT', 'EE', 'DE', 'PL', 'FI', 'SE', 'GB', 'US', 'FR', 'IT', 'ES', 'NL', 'OT']
+COUNTRY_TO_INDEX = {code: idx for idx, code in enumerate(COUNTRY_CODES)}
+
 class GlobalInventoryModel:
     """
     Contextual Part Demand & Connection ANN.
@@ -70,7 +73,7 @@ class GlobalInventoryModel:
         recent_history_input = Input(shape=(self.sequence_length, self.n_features), name="recent_history")
         part_features_input = Input(shape=(self.part_feature_dim,), name="part_features")
         warehouse_usage_input = Input(shape=(self.max_part_id,), name="warehouse_usage")
-        warehouse_location_input = Input(shape=(3,), name="warehouse_location")
+        warehouse_country_input = Input(shape=(1,), name="warehouse_country", dtype="int32")
 
         # Global Brain (Logic Pathway)
         history_lstm = LSTM(32, return_sequences=False)(recent_history_input)
@@ -83,7 +86,13 @@ class GlobalInventoryModel:
         # Warehouse Filter (Gating Pathway)
         usage_reduced = Dense(64, activation='relu')(warehouse_usage_input)
         usage_drop = Dropout(0.2)(usage_reduced)
-        warehouse_concat = Concatenate()([usage_drop, warehouse_location_input])
+        
+        # Country Embedding
+        from tensorflow.keras.layers import Embedding, Flatten
+        country_embedding = Embedding(input_dim=len(COUNTRY_CODES), output_dim=8, name="country_embedding")(warehouse_country_input)
+        country_flat = Flatten()(country_embedding)
+
+        warehouse_concat = Concatenate()([usage_drop, country_flat])
         warehouse_dense = Dense(32, activation='relu')(warehouse_concat)
         warehouse_fingerprint = Dense(32, activation='sigmoid', name="warehouse_fingerprint")(warehouse_dense)
 
@@ -95,7 +104,7 @@ class GlobalInventoryModel:
         output = Dense(1, name="prediction")(out_dense)
 
         model = Model(
-            inputs=[recent_history_input, part_features_input, warehouse_usage_input, warehouse_location_input], 
+            inputs=[recent_history_input, part_features_input, warehouse_usage_input, warehouse_country_input], 
             outputs=output
         )
         
@@ -158,21 +167,13 @@ class GlobalInventoryModel:
             
         return usage_vector
 
-    def _get_warehouse_location(self, warehouse):
+    def _get_warehouse_country_index(self, warehouse):
         """
-        Returns 3D Cartesian coordinates (X, Y, Z) converted from lat/lon to prevent spherical distortion.
+        Returns standard integer index of the warehouse country code for embedding lookup.
         """
-        lat = float(warehouse.latitude) if warehouse.latitude is not None else 0.0
-        lon = float(warehouse.longitude) if warehouse.longitude is not None else 0.0
-        
-        lat_rad = np.radians(lat)
-        lon_rad = np.radians(lon)
-        
-        x = np.cos(lat_rad) * np.cos(lon_rad)
-        y = np.cos(lat_rad) * np.sin(lon_rad)
-        z = np.sin(lat_rad)
-        
-        return np.array([x, y, z], dtype=np.float32)
+        country_code = warehouse.country_code or 'LV'
+        country_code = country_code.upper()
+        return COUNTRY_TO_INDEX.get(country_code, COUNTRY_TO_INDEX['OT'])
 
     def fetch_and_preprocess(self, prediction_period=30):
         """
@@ -223,15 +224,15 @@ class GlobalInventoryModel:
         X_recent = []
         X_part = []
         X_w_usage = []
-        X_w_loc = []
+        X_w_country = []
         y = []
         
         # Precompute vectors to save time
         w_usage_cache = {}
-        w_loc_cache = {}
+        w_country_cache = {}
         for wid, warehouse in warehouse_cache.items():
             w_usage_cache[wid] = self._get_warehouse_usage_vector(warehouse)
-            w_loc_cache[wid] = self._get_warehouse_location(warehouse)
+            w_country_cache[wid] = self._get_warehouse_country_index(warehouse)
 
         p_feature_cache = {}
         for pid, product in product_cache.items():
@@ -240,7 +241,7 @@ class GlobalInventoryModel:
         for wid, w_data in data_by_w_p.items():
             for pid, daily_data in w_data.items():
                 w_usage = w_usage_cache[wid]
-                w_loc = w_loc_cache[wid]
+                w_country = w_country_cache[wid]
                 p_feat = p_feature_cache[pid]
 
                 # Generate full series from start_date to end_date globally
@@ -259,7 +260,7 @@ class GlobalInventoryModel:
                     X_recent.append([[val] for val in window_x])
                     X_part.append(p_feat)
                     X_w_usage.append(w_usage)
-                    X_w_loc.append(w_loc)
+                    X_w_country.append([w_country])
                     y.append(window_y)
 
         if not X_recent:
@@ -270,7 +271,7 @@ class GlobalInventoryModel:
                 np.array(X_recent, dtype=np.float32), 
                 np.array(X_part, dtype=np.float32),
                 np.array(X_w_usage, dtype=np.float32),
-                np.array(X_w_loc, dtype=np.float32)
+                np.array(X_w_country, dtype=np.int32)
             ],
             np.array(y, dtype=np.float32)
         )
@@ -323,9 +324,9 @@ class GlobalInventoryModel:
         X_recent = np.array([[ [val] for val in recent_seq ]], dtype=np.float32)
         X_part = np.array([self._extract_part_features(product_listing.product)], dtype=np.float32)
         X_w_usage = np.array([self._get_warehouse_usage_vector(warehouse)], dtype=np.float32)
-        X_w_loc = np.array([self._get_warehouse_location(warehouse)], dtype=np.float32)
+        X_w_country = np.array([[self._get_warehouse_country_index(warehouse)]], dtype=np.int32)
 
-        raw_prediction = self.model.predict([X_recent, X_part, X_w_usage, X_w_loc], verbose=0)
+        raw_prediction = self.model.predict([X_recent, X_part, X_w_usage, X_w_country], verbose=0)
         
         # Scale prediction up from trained_horizon to 30 days dynamically!
         scale_factor = 30 / self.trained_horizon

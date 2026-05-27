@@ -28,15 +28,33 @@ class Company(models.Model):
         return self.name
 
 class Warehouse(models.Model):
+    COUNTRY_CHOICES = [
+        ('LV', 'Latvia (LV)'),
+        ('LT', 'Lithuania (LT)'),
+        ('EE', 'Estonia (EE)'),
+        ('DE', 'Germany (DE)'),
+        ('PL', 'Poland (PL)'),
+        ('FI', 'Finland (FI)'),
+        ('SE', 'Sweden (SE)'),
+        ('GB', 'Great Britain (GB)'),
+        ('US', 'United States (US)'),
+        ('FR', 'France (FR)'),
+        ('IT', 'Italy (IT)'),
+        ('ES', 'Spain (ES)'),
+        ('NL', 'Netherlands (NL)'),
+        ('OT', 'Other (OT)'),
+    ]
+
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='warehouses')
     name = models.CharField(max_length=255)
     address = models.TextField(blank=True)
     
-    # Point field stores both X and Y (Longitude and Latitude).
-    # srid=4326 uses the WGS 84 coordinate system (the global standard used by GPS).
-    # 6 decimal places is standard accurate tracking for a physical facility
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
+    country_code = models.CharField(
+        max_length=2,
+        choices=COUNTRY_CHOICES,
+        default='LV',
+        help_text="Two-letter ISO country code for the warehouse location"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
 
