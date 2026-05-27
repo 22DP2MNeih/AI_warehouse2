@@ -360,7 +360,7 @@ const closeForm = () => {
 
           <DataTable 
             :columns="tableCols" 
-            :data="inventory"
+            :data="filteredInventory"
             :rowActions="rowActions"
             :globalActions="myGlobalActions"
             @action="handleAction"
